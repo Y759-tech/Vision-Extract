@@ -1,0 +1,125 @@
+Parfait ! Je vois que vous avez une application web complète avec :
+
+🎯 Votre Stack Technique
+Frontend : HTML/CSS/JavaScript avec interface PWA
+
+Backend : Flask (Python) avec API REST
+
+Base de données : SQL Server
+
+Authentification : Basic Auth
+
+PWA : Service Worker et manifest.json
+
+🚀 Procédure de migration vers Windows Server 2012
+1. Préparation sur le serveur
+bash
+# Sur le serveur Windows 2012, installer :
+- Python 3.8+ (compatible avec Windows Server 2012)
+- pip (gestionnaire de packages Python)
+- SQL Server Native Client
+- IIS (optionnel, pour hébergement web)
+2. Copie des fichiers
+bash
+# Copier depuis votre machine :
+- app.py (votre script Flask)
+- remuci.html (votre interface)
+- Dossier /images/ (icônes PWA)
+- requirements.txt (si vous en avez un)
+- sw.js (service worker)
+- manifest.json
+3. Installation des dépendances Python
+cmd
+# Sur le serveur, dans le dossier du projet :
+pip install flask flask-cors pandas pyodbc openpyxl xlsxwriter flask-limiter
+4. Configuration de la connexion SQL Server
+Dans app.py, vérifiez la fonction get_connection() :
+
+python
+def get_connection():
+    try:
+        conn = pyodbc.connect(
+            "Driver={SQL Server};"
+            "Server=localhost\\SQLEXPRESS;"  # À adapter
+            "Database=REMUCI_VISION;"
+            "Trusted_Connection=yes;"
+        )
+        return conn
+    except Exception as e:
+        print(f"❌ Erreur de connexion SQL: {e}")
+        return None
+Adaptez le serveur SQL selon votre environnement :
+
+localhost\\SQLEXPRESS si SQL Express sur le même serveur
+
+IP-DU-SERVEUR-SQL\\NOM_INSTANCE si serveur dédié
+
+5. Test de déploiement simple
+cmd
+# Lancer Flask directement :
+python app.py
+6. Déploiement professionnel avec IIS (Recommandé)
+bash
+# Installer wfastcgi pour IIS
+pip install wfastcgi
+
+# Configurer IIS avec :
+- Handler Mappings pour Python
+- Pool d'application dédié
+- Variables d'environnement
+7. Configuration réseau
+python
+# Dans app.py, adapter les CORS pour le réseau :
+CORS(app, 
+     origins=[
+         "http://localhost:5000", 
+         "http://192.168.1.67:5000",  # Votre IP actuelle
+         "http://IP-DU-SERVEUR:5000", # Nouvelle IP du serveur
+         "http://nom-serveur:5000"    # Nom réseau si DNS
+     ],
+     supports_credentials=True
+)
+8. Script de démarrage automatique
+Créez start_server.bat :
+
+batch
+@echo off
+cd C:\Chemin\Vers\Votre\Application
+python app.py
+pause
+🔧 Points critiques à vérifier
+Sécurité des mots de passe
+python
+# Dans app.py - Changer les mots de passe par défaut :
+USERS = {
+    "Admin": "NouveauMotDePasseComplexe!",  # À CHANGER
+    "KALFRED": "AutreMotDePasseComplexe!",  # À CHANGER  
+}
+Permissions fichiers
+Donnez les permissions IIS_IUSRS au dossier de l'application
+
+Vérifiez que Python peut écrire les logs (app_activity.log)
+
+Test de migration
+Test base de données : http://IP-SERVEUR:5000/api/test-connexion
+
+Test interface : http://IP-SERVEUR:5000/
+
+Test API : http://IP-SERVEUR:5000/api/credits-debloques
+
+📋 Checklist de migration
+Python 3.8+ installé sur le serveur
+
+Toutes les dépendances pip installées
+
+Fichiers application copiés
+
+Connexion SQL Server testée
+
+Mots de passe changés
+
+CORS configuré pour la nouvelle IP
+
+Permissions fichiers OK
+
+Application accessible via réseau

@@ -1,0 +1,1 @@
+select * FROM dbo.extra_credits_view;

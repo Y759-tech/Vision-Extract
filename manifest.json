@@ -1,0 +1,33 @@
+{
+  "name": "REMU-CI VisionExtract",
+  "short_name": "REMU-CI",
+  "description": "Application MicroFinance REMU-CI",
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "background_color": "#1a472a",
+  "theme_color": "#1a472a",
+  "orientation": "any",
+  "scope": "/",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/images/android-icon-192x192.png?v=3",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/android-icon-512x512.png?v=3",
+      "sizes": "512x512", 
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/apple-icon-180x180.png?v=3",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "finance", "productivity"]
+}

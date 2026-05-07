@@ -1,0 +1,1 @@
+select * FROM dbo.DOSSIERS_CREDIT;

@@ -1,0 +1,3094 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REMU-CI VisionExtract - Outil Décisionnel</title>
+    
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json?v=3">
+    <meta name="theme-color" content="#1a472a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="REMU-CI">
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js pour les graphiques -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- jsPDF pour les exports PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Thème sombre */
+        body.dark-mode {
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        body.dark-mode .sidebar,
+        body.dark-mode .kpi-card,
+        body.dark-mode .chart-card,
+        body.dark-mode .activity-card,
+        body.dark-mode .filters-panel,
+        body.dark-mode .table-container {
+            background: #1e293b;
+            border-color: #334155;
+            color: #e2e8f0;
+        }
+
+        body.dark-mode .search-bar {
+            background: #334155;
+            border-color: #475569;
+        }
+
+        body.dark-mode .search-bar input {
+            color: #e2e8f0;
+        }
+
+        /* Layout principal */
+        .app {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: background-color 0.3s, border-color 0.3s;
+            z-index: 10;
+        }
+
+        .logo {
+            padding: 0 12px 24px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dark-mode .logo {
+            color: #e2e8f0;
+        }
+
+        .logo span {
+            color: #1a472a;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            padding: 8px 12px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: #475569;
+            font-weight: 500;
+            transition: all 0.2s;
+            cursor: pointer;
+            margin-bottom: 2px;
+        }
+
+        .dark-mode .nav-item {
+            color: #94a3b8;
+        }
+
+        .nav-item:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .dark-mode .nav-item:hover {
+            background: #334155;
+            color: #e2e8f0;
+        }
+
+        .nav-item.active {
+            background: #e8f0fe;
+            color: #1a472a;
+            border-left: 3px solid #1a472a;
+        }
+
+        .dark-mode .nav-item.active {
+            background: #2d3a4f;
+            color: #90be6d;
+            border-left-color: #90be6d;
+        }
+
+        .nav-item i {
+            width: 20px;
+            font-size: 1.1rem;
+        }
+
+        /* Main content */
+        .main {
+            flex: 1;
+            margin-left: 280px;
+            padding: 24px 32px;
+            overflow-y: auto;
+            min-height: 100vh;
+            transition: margin-left 0.3s;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 40px;
+            padding: 8px 16px;
+            width: 400px;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .search-bar i {
+            color: #94a3b8;
+            margin-right: 12px;
+        }
+
+        .search-bar input {
+            border: none;
+            outline: none;
+            width: 100%;
+            font-size: 0.95rem;
+            background: transparent;
+            color: inherit;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .theme-toggle {
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #64748b;
+            transition: color 0.2s;
+        }
+
+        .theme-toggle:hover {
+            color: #1a472a;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 40px;
+            background: linear-gradient(135deg, #1a472a, #2e7d32);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #1a472a;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+
+        .kpi-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: #e8f0fe;
+            color: #1a472a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .dark-mode .kpi-icon {
+            background: #2d3a4f;
+            color: #90be6d;
+        }
+
+        .kpi-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .kpi-trend {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.85rem;
+        }
+
+        .trend-up { color: #10b981; }
+        .trend-down { color: #ef4444; }
+
+        /* Charts row */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .chart-title {
+            font-weight: 600;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-title i {
+            color: #1a472a;
+        }
+
+        .chart-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 12px;
+            font-size: 0.85rem;
+            padding: 8px;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .dark-mode .chart-legend {
+            background: #334155;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 4px;
+        }
+
+        canvas {
+            height: 250px !important;
+            width: 100% !important;
+            max-height: 250px;
+        }
+
+        /* Tables et conteneurs */
+        .table-container {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+            overflow-x: auto;
+            transition: background-color 0.3s;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .table-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .table-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            color: #64748b;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border-bottom: 2px solid #e2e8f0;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            white-space: nowrap;
+        }
+
+        .dark-mode td {
+            border-bottom-color: #334155;
+        }
+
+        tr:hover {
+            background: #f8fafc;
+        }
+
+        .dark-mode tr:hover {
+            background: #334155;
+        }
+
+        /* Badges de statut */
+        .badge {
+            padding: 4px 10px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #10b981;
+        }
+
+        .badge-warning {
+            background: #fff7ed;
+            color: #f97316;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #ef4444;
+        }
+
+        .badge-info {
+            background: #e0f2fe;
+            color: #0ea5e9;
+        }
+
+        .badge-critical {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        /* Filtres */
+        .filters-panel {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-group label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #475569;
+        }
+
+        .dark-mode .filter-group label {
+            color: #94a3b8;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            background: white;
+            color: #1e293b;
+            transition: border-color 0.2s;
+        }
+
+        .dark-mode .filter-group input,
+        .dark-mode .filter-group select {
+            background: #334155;
+            border-color: #475569;
+            color: #e2e8f0;
+        }
+
+        .filter-group input:focus,
+        .filter-group select:focus {
+            border-color: #1a472a;
+        }
+
+        /* Boutons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: #1a472a;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2e7d32;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #e2e8f0;
+            color: #475569;
+        }
+
+        .btn-outline:hover {
+            background: #f1f5f9;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .page-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .dark-mode .page-btn {
+            background: #334155;
+            border-color: #475569;
+            color: #e2e8f0;
+        }
+
+        .page-btn:hover {
+            background: #f1f5f9;
+        }
+
+        .page-btn.active {
+            background: #1a472a;
+            color: white;
+            border-color: #1a472a;
+        }
+
+        .page-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            margin: 0 10px;
+            color: #64748b;
+        }
+
+        /* Activity list */
+        .activity-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .dark-mode .activity-item {
+            border-bottom-color: #334155;
+        }
+
+        .activity-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+        }
+
+        .dark-mode .activity-icon {
+            background: #334155;
+            color: #94a3b8;
+        }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-title {
+            font-weight: 500;
+            margin-bottom: 4px;
+            font-size: 0.95rem;
+        }
+
+        .activity-time {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .activity-amount {
+            font-weight: 600;
+            color: #1a472a;
+        }
+
+        /* Login */
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a472a, #2e7d32);
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-logo h1 {
+            font-size: 2rem;
+            color: #1a472a;
+        }
+
+        .login-logo p {
+            color: #64748b;
+            margin-top: 8px;
+        }
+
+        /* Loading */
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f1f5f9;
+            border-top-color: #1a472a;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px;
+            gap: 20px;
+        }
+
+        /* Alertes */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .alert-warning {
+            background: #fff7ed;
+            color: #9a3412;
+        }
+
+        .alert-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .alert-info {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        /* Personnalisation */
+        .settings-float {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            background: linear-gradient(135deg, #1a472a, #2e7d32);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            transition: transform 0.2s;
+        }
+
+        .settings-float:hover {
+            transform: scale(1.1);
+        }
+
+        .customization-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 380px;
+            height: 100vh;
+            background: white;
+            box-shadow: -5px 0 25px rgba(0, 0, 0, 0.1);
+            z-index: 200;
+            transition: right 0.3s ease;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .dark-mode .customization-panel {
+            background: #1e293b;
+            color: #e2e8f0;
+        }
+
+        .customization-panel.active {
+            right: 0;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .dark-mode .panel-header {
+            border-bottom-color: #334155;
+        }
+
+        .close-panel {
+            width: 36px;
+            height: 36px;
+            border-radius: 18px;
+            border: none;
+            background: #f1f5f9;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .dark-mode .close-panel {
+            background: #334155;
+            color: #e2e8f0;
+        }
+
+        .option-group {
+            margin-bottom: 24px;
+        }
+
+        .option-group h4 {
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+
+        .color-options {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+        }
+
+        .color-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+
+        .color-option.active {
+            border-color: #1a472a;
+        }
+
+        .font-options,
+        .size-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .font-option,
+        .size-option {
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .font-option:hover,
+        .size-option:hover {
+            background: #f1f5f9;
+        }
+
+        .font-option.active,
+        .size-option.active {
+            background: #1a472a;
+            color: white;
+            border-color: #1a472a;
+        }
+
+        .dark-mode .font-option,
+        .dark-mode .size-option {
+            border-color: #334155;
+        }
+
+        .reset-btn {
+            width: 100%;
+            padding: 12px;
+            background: #f1f5f9;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+
+        .dark-mode .reset-btn {
+            background: #334155;
+            color: #e2e8f0;
+        }
+
+        .reset-btn:hover {
+            background: #e2e8f0;
+        }
+
+        .dark-mode .reset-btn:hover {
+            background: #475569;
+        }
+
+        /* Overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 150;
+            display: none;
+        }
+
+        .overlay.active {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+            .sidebar.mobile-visible {
+                transform: translateX(0);
+            }
+            .main {
+                margin-left: 0;
+                padding: 16px;
+            }
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+            .search-bar {
+                width: 100%;
+            }
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .user-menu {
+                justify-content: flex-end;
+            }
+            .customization-panel {
+                width: 100%;
+            }
+        }
+
+        /* Menu mobile toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 50;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: #1a472a;
+            color: white;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: flex;
+            }
+        }
+
+        /* Tooltips */
+        [data-tooltip] {
+            position: relative;
+            cursor: help;
+        }
+
+        [data-tooltip]:before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 6px 12px;
+            background: #1e293b;
+            color: white;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            white-space: nowrap;
+            display: none;
+            z-index: 10;
+        }
+
+        [data-tooltip]:hover:before {
+            display: block;
+        }
+
+        /* Stats cards */
+        .stats-mini-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stats-mini-card {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .dark-mode .stats-mini-card {
+            background: #334155;
+        }
+
+        .stats-mini-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #1a472a;
+        }
+
+        .stats-mini-label {
+            font-size: 0.7rem;
+            color: #64748b;
+        }
+
+        /* Onglets d'analyse */
+        .analytics-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+
+        .analytics-tab {
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .analytics-tab:hover {
+            background: #f1f5f9;
+        }
+
+        .analytics-tab.active {
+            background: #1a472a;
+            color: white;
+        }
+
+        .dark-mode .analytics-tab:hover {
+            background: #334155;
+        }
+
+        /* Impression */
+        @media print {
+            .sidebar,
+            .header,
+            .settings-float,
+            .action-buttons,
+            .pagination {
+                display: none !important;
+            }
+            .main {
+                margin-left: 0;
+                padding: 0;
+            }
+            body {
+                background: white;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile menu toggle -->
+    <div class="mobile-menu-toggle" id="mobileMenuToggle">
+        <i class="fas fa-bars"></i>
+    </div>
+
+    <!-- Login Screen -->
+    <div class="login-container" id="login-screen">
+        <div class="login-card">
+            <div class="login-logo">
+                <h1>REMU-CI</h1>
+                <p>VisionExtract - Outil Décisionnel</p>
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+                <input type="text" id="username" placeholder="Nom d'utilisateur" style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <input type="password" id="password" placeholder="Mot de passe" style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px;">
+            </div>
+            
+            <button class="btn btn-primary" style="width: 100%;" onclick="login()">
+                <i class="fas fa-sign-in-alt"></i> Se connecter
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div class="app" id="app-container" style="display: none;">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="logo">
+                <i class="fas fa-chart-line"></i>
+                <span>REMU-CI</span>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Tableau de bord</div>
+                <div class="nav-item active" data-target="dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Vue d'ensemble</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Crédits</div>
+                <div class="nav-item" data-target="credits">
+                    <i class="fas fa-hand-holding-usd"></i>
+                    <span>Crédits débloqués</span>
+                </div>
+                <div class="nav-item" data-target="unpaid">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Crédits impayés</span>
+                </div>
+                <div class="nav-item" data-target="echeances">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Échéances futures</span>
+                </div>
+                <div class="nav-item" data-target="remboursements">
+                    <i class="fas fa-money-check-alt"></i>
+                    <span>Remboursements</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Clientèle</div>
+                <div class="nav-item" data-target="clients">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Nouveaux clients</span>
+                </div>
+                <div class="nav-item" data-target="active">
+                    <i class="fas fa-user-check"></i>
+                    <span>Clients actifs</span>
+                </div>
+                <div class="nav-item" data-target="accounts">
+                    <i class="fas fa-piggy-bank"></i>
+                    <span>Comptes ouverts</span>
+                </div>
+                <div class="nav-item" data-target="shares">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Parts sociales</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Comptabilité</div>
+                <div class="nav-item" data-target="balance">
+                    <i class="fas fa-balance-scale"></i>
+                    <span>Balance J-1</span>
+                </div>
+                <div class="nav-item" data-target="ledger">
+                    <i class="fas fa-book"></i>
+                    <span>Grand livre</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Analyses</div>
+                <div class="nav-item" data-target="genre">
+                    <i class="fas fa-venus-mars"></i>
+                    <span>Analyse par genre</span>
+                </div>
+                <div class="nav-item" data-target="analyse">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Analyse des risques</span>
+                </div>
+            </div>
+
+            <div style="margin-top: auto; padding: 20px 12px;">
+                <div class="nav-item" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Déconnexion</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main">
+            <!-- Header -->
+            <div class="header">
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="globalSearch" placeholder="Rechercher client, dossier, transaction...">
+                </div>
+                
+                <div class="user-menu">
+                    <div class="theme-toggle" id="themeToggle" title="Changer de thème">
+                        <i class="fas fa-moon"></i>
+                    </div>
+                    <div class="avatar" id="user-avatar">AD</div>
+                </div>
+            </div>
+
+            <!-- Dynamic Content -->
+            <div id="dynamic-content"></div>
+        </div>
+    </div>
+
+    <!-- Customization Button -->
+    <div class="settings-float" id="settingsFloat" title="Personnaliser l'interface">
+        <i class="fas fa-palette"></i>
+    </div>
+
+    <!-- Customization Panel -->
+    <div class="customization-panel" id="customizationPanel">
+        <div class="panel-header">
+            <h3><i class="fas fa-palette"></i> Personnalisation</h3>
+            <button class="close-panel" id="closePanel">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="option-group">
+            <h4>Couleur principale</h4>
+            <div class="color-options">
+                <div class="color-option active" style="background: #1a472a;" data-color="#1a472a" data-light="#e8f0fe"></div>
+                <div class="color-option" style="background: #0d9488;" data-color="#0d9488"></div>
+                <div class="color-option" style="background: #2563eb;" data-color="#2563eb"></div>
+                <div class="color-option" style="background: #7c3aed;" data-color="#7c3aed"></div>
+                <div class="color-option" style="background: #b45309;" data-color="#b45309"></div>
+                <div class="color-option" style="background: #be123c;" data-color="#be123c"></div>
+                <div class="color-option" style="background: #1e293b;" data-color="#1e293b"></div>
+                <div class="color-option" style="background: #854d0e;" data-color="#854d0e"></div>
+                <div class="color-option" style="background: #0e7490;" data-color="#0e7490"></div>
+                <div class="color-option" style="background: #a21caf;" data-color="#a21caf"></div>
+                <div class="color-option" style="background: #166534;" data-color="#166534"></div>
+                <div class="color-option" style="background: #92400e;" data-color="#92400e"></div>
+            </div>
+        </div>
+
+        <div class="option-group">
+            <h4>Police</h4>
+            <div class="font-options">
+                <div class="font-option active" data-font="'Inter', sans-serif">Inter</div>
+                <div class="font-option" data-font="'Poppins', sans-serif">Poppins</div>
+                <div class="font-option" data-font="'Roboto', sans-serif">Roboto</div>
+                <div class="font-option" data-font="'Open Sans', sans-serif">Open Sans</div>
+            </div>
+        </div>
+
+        <div class="option-group">
+            <h4>Taille de police</h4>
+            <div class="size-options">
+                <div class="size-option" data-size="12px">Petite</div>
+                <div class="size-option active" data-size="14px">Moyenne</div>
+                <div class="size-option" data-size="16px">Grande</div>
+                <div class="size-option" data-size="18px">Très grande</div>
+            </div>
+        </div>
+
+        <button class="reset-btn" id="resetSettings">
+            <i class="fas fa-undo"></i> Réinitialiser
+        </button>
+    </div>
+
+    <!-- Overlay -->
+    <div class="overlay" id="overlay"></div>
+
+    <script>
+
+    // Ajouter en tout début de script, après les configurations
+console.log('🚀 Application REMU-CI démarrée - Version avec logs détaillés');
+window.onerror = function(msg, url, line) {
+    console.error('❌ Erreur globale:', msg, 'à la ligne', line);
+};
+        // ============ CONFIGURATION ============
+        const API_BASE = '';
+        let currentUser = null;
+        let paginationState = {};
+        let charts = {};
+
+        // ============ AUTHENTIFICATION ============
+        async function checkExistingSession() {
+            try {
+                const response = await fetch('/api/check-session', { credentials: 'include' });
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.authenticated) {
+                        currentUser = result.username;
+                        document.getElementById('login-screen').style.display = 'none';
+                        document.getElementById('app-container').style.display = 'flex';
+                        updateUserDisplay(result.username);
+                        showDashboard();
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.log('Pas de session valide');
+            }
+            
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('app-container').style.display = 'none';
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showNotification('Veuillez entrer vos identifiants', 'warning');
+                return;
+            }
+            
+            try {
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+                
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentUser = username;
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('app-container').style.display = 'flex';
+                    updateUserDisplay(username);
+                    showDashboard();
+                    showNotification('Connexion réussie', 'success');
+                } else {
+                    showNotification('Identifiants incorrects', 'error');
+                }
+            } catch (error) {
+                showNotification('Erreur de connexion au serveur', 'error');
+            }
+        }
+
+        async function logout() {
+            await fetch('/logout', { method: 'POST', credentials: 'include' });
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('app-container').style.display = 'none';
+        }
+
+        function updateUserDisplay(username) {
+            const avatar = document.getElementById('user-avatar');
+            if (avatar) {
+                const initials = username.substring(0, 2).toUpperCase();
+                avatar.textContent = initials;
+            }
+        }
+
+        // ============ NOTIFICATIONS ============
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type}`;
+            notification.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            notification.style.position = 'fixed';
+            notification.style.top = '20px';
+            notification.style.right = '20px';
+            notification.style.zIndex = '1000';
+            notification.style.maxWidth = '300px';
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // ============ THÈME SOMBRE/CLAIR ============
+        document.getElementById('themeToggle').addEventListener('click', function() {
+            document.body.classList.toggle('dark-mode');
+            const icon = this.querySelector('i');
+            if (document.body.classList.contains('dark-mode')) {
+                icon.className = 'fas fa-sun';
+            } else {
+                icon.className = 'fas fa-moon';
+            }
+            saveSettings();
+        });
+
+        // ============ NAVIGATION ============
+        document.addEventListener('DOMContentLoaded', function() {
+            checkExistingSession();
+            
+            // Navigation menu
+            document.querySelectorAll('.nav-item[data-target]').forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = this.getAttribute('data-target');
+                    
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    if (target === 'dashboard') {
+                        showDashboard();
+                    } else {
+                        loadView(target);
+                    }
+                    
+                    // Fermer le menu mobile si ouvert
+                    if (window.innerWidth <= 768) {
+                        document.getElementById('sidebar').classList.remove('mobile-visible');
+                    }
+                });
+            });
+
+            // Mobile menu toggle
+            document.getElementById('mobileMenuToggle').addEventListener('click', function() {
+                document.getElementById('sidebar').classList.toggle('mobile-visible');
+            });
+
+            // Global search
+            document.getElementById('globalSearch').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const query = this.value.trim();
+                    if (query) {
+                        showNotification('Recherche globale en cours de développement', 'info');
+                    }
+                }
+            });
+        });
+
+        // ============ PERSONNALISATION ============
+        document.addEventListener('DOMContentLoaded', function() {
+            const settingsFloat = document.getElementById('settingsFloat');
+            const panel = document.getElementById('customizationPanel');
+            const closePanel = document.getElementById('closePanel');
+            const overlay = document.getElementById('overlay');
+
+            settingsFloat.addEventListener('click', () => {
+                panel.classList.add('active');
+                overlay.classList.add('active');
+            });
+
+            function closeCustomization() {
+                panel.classList.remove('active');
+                overlay.classList.remove('active');
+            }
+
+            closePanel.addEventListener('click', closeCustomization);
+            overlay.addEventListener('click', closeCustomization);
+
+            // Charger les paramètres
+            loadSettings();
+
+            // Couleurs
+            document.querySelectorAll('.color-option').forEach(opt => {
+                opt.addEventListener('click', function() {
+                    const color = this.dataset.color;
+                    document.querySelectorAll('.color-option').forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Appliquer la couleur
+                    document.documentElement.style.setProperty('--primary-color', color);
+                    document.querySelectorAll('.btn-primary').forEach(btn => {
+                        btn.style.background = color;
+                    });
+                    document.querySelectorAll('.kpi-card').forEach(card => {
+                        card.style.borderLeftColor = color;
+                    });
+                    document.querySelectorAll('.nav-item.active').forEach(item => {
+                        item.style.color = color;
+                    });
+                    
+                    saveSettings();
+                });
+            });
+
+            // Polices
+            document.querySelectorAll('.font-option').forEach(opt => {
+                opt.addEventListener('click', function() {
+                    const font = this.dataset.font;
+                    document.querySelectorAll('.font-option').forEach(f => f.classList.remove('active'));
+                    this.classList.add('active');
+                    document.body.style.fontFamily = font;
+                    saveSettings();
+                });
+            });
+
+            // Tailles
+            document.querySelectorAll('.size-option').forEach(opt => {
+                opt.addEventListener('click', function() {
+                    const size = this.dataset.size;
+                    document.querySelectorAll('.size-option').forEach(s => s.classList.remove('active'));
+                    this.classList.add('active');
+                    document.body.style.fontSize = size;
+                    saveSettings();
+                });
+            });
+
+            // Reset
+            document.getElementById('resetSettings').addEventListener('click', function() {
+                localStorage.removeItem('remuci-settings');
+                location.reload();
+            });
+        });
+
+        function saveSettings() {
+            const settings = {
+                theme: document.body.classList.contains('dark-mode') ? 'dark' : 'light',
+                color: document.querySelector('.color-option.active')?.dataset.color || '#1a472a',
+                font: document.querySelector('.font-option.active')?.dataset.font || "'Inter', sans-serif",
+                size: document.querySelector('.size-option.active')?.dataset.size || '14px'
+            };
+            localStorage.setItem('remuci-settings', JSON.stringify(settings));
+        }
+
+        function loadSettings() {
+            const saved = localStorage.getItem('remuci-settings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                
+                // Thème
+                if (settings.theme === 'dark') {
+                    document.body.classList.add('dark-mode');
+                    document.querySelector('#themeToggle i').className = 'fas fa-sun';
+                }
+                
+                // Couleur
+                const colorOption = document.querySelector(`.color-option[data-color="${settings.color}"]`);
+                if (colorOption) {
+                    colorOption.click();
+                }
+                
+                // Police
+                const fontOption = document.querySelector(`.font-option[data-font="${settings.font}"]`);
+                if (fontOption) {
+                    fontOption.click();
+                }
+                
+                // Taille
+                const sizeOption = document.querySelector(`.size-option[data-size="${settings.size}"]`);
+                if (sizeOption) {
+                    sizeOption.click();
+                }
+            }
+        }
+
+        // ============ FONCTIONS UTILITAIRES ============
+        function formatNumber(num) {
+            if (num === null || num === undefined) return '0';
+            return new Intl.NumberFormat('fr-FR').format(num);
+        }
+
+        function formatMontant(montant) {
+            if (montant === null || montant === undefined) return '0';
+            return new Intl.NumberFormat('fr-FR').format(Math.round(montant)) + ' FCFA';
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('fr-FR');
+        }
+
+        function getToday() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function getDefaultDateStart(months = 4) {
+            const date = new Date();
+            date.setMonth(date.getMonth() - months);
+            return date.toISOString().split('T')[0];
+        }
+
+        // ============ DASHBOARD ============
+        async function showDashboard() {
+            const content = document.getElementById('dynamic-content');
+            
+            content.innerHTML = `
+                <div class="kpi-grid" id="dashboard-kpis">
+                    <div class="kpi-card">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">
+                                <i class="fas fa-chart-line"></i>
+                                Évolution des décaissements
+                            </div>
+                        </div>
+                        <canvas id="chart-evolution"></canvas>
+                    </div>
+                    
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div class="chart-title">
+                                <i class="fas fa-chart-pie"></i>
+                                Répartition par produit
+                            </div>
+                        </div>
+                        <canvas id="chart-repartition"></canvas>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="chart-header">
+                        <div class="chart-title">
+                            <i class="fas fa-history"></i>
+                            Dernières activités
+                        </div>
+                        <button class="btn btn-outline btn-sm" onclick="refreshActivities()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div id="activity-list">
+                        <div class="loading-container">
+                            <div class="loading-spinner"></div>
+                            <p>Chargement des activités...</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            await loadDashboardData();
+        }
+
+        async function loadDashboardData() {
+            try {
+                const response = await fetch('/api/dashboard-data', { credentials: 'include' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateDashboardKPIs(result.data);
+                    updateDashboardCharts(result.data);
+                    updateActivities(result.data.activites);
+                } else {
+                    showNotification('Erreur de chargement des données', 'error');
+                }
+            } catch (error) {
+                console.error('Erreur dashboard:', error);
+                showNotification('Erreur de connexion', 'error');
+            }
+        }
+
+        function updateDashboardKPIs(data) {
+            const kpis = [
+                { title: 'Crédits débloqués', value: formatMontant(data.credits_debloques), icon: 'fa-hand-holding-usd', trend: '+12%' },
+                { title: 'Nouveaux clients', value: formatNumber(data.nouveaux_clients), icon: 'fa-user-plus', trend: '+5%' },
+                { title: "Taux d'impayés", value: data.taux_impayes + '%', icon: 'fa-exclamation-triangle', trend: '+2%' },
+                { title: 'Comptes ouverts', value: formatNumber(data.comptes_ouverts), icon: 'fa-piggy-bank', trend: '+7%' },
+                { title: 'Clients actifs', value: '12 548', icon: 'fa-users', trend: '+5%' },
+                { title: 'Épargne collectée', value: '985 000 000 FCFA', icon: 'fa-coins', trend: '+12%' },
+                { title: 'Encours total', value: '2 456 789 000 FCFA', icon: 'fa-chart-line', trend: '+8%' },
+                { title: 'Taux recouvrement', value: '98.3%', icon: 'fa-percent', trend: '+1%' }
+            ];
+            
+            const container = document.getElementById('dashboard-kpis');
+            container.innerHTML = kpis.map(kpi => `
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span>${kpi.title}</span>
+                        <div class="kpi-icon">
+                            <i class="fas ${kpi.icon}"></i>
+                        </div>
+                    </div>
+                    <div class="kpi-value">${kpi.value}</div>
+                    <div class="kpi-trend trend-up">
+                        <i class="fas fa-arrow-up"></i>
+                        ${kpi.trend} vs mois dernier
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateDashboardCharts(data) {
+            // Détruire les anciens graphiques
+            if (charts.evolution) charts.evolution.destroy();
+            if (charts.repartition) charts.repartition.destroy();
+
+            // Graphique d'évolution
+            const ctx1 = document.getElementById('chart-evolution')?.getContext('2d');
+            if (ctx1 && data.evolution && data.evolution.length > 0) {
+                charts.evolution = new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: data.evolution.map(item => item.mois),
+                        datasets: [{
+                            label: 'Montant (FCFA)',
+                            data: data.evolution.map(item => item.montant),
+                            borderColor: '#1a472a',
+                            backgroundColor: 'rgba(26, 71, 42, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: value => formatNumber(value)
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Graphique de répartition
+            const ctx2 = document.getElementById('chart-repartition')?.getContext('2d');
+            if (ctx2 && data.repartition && data.repartition.length > 0) {
+                charts.repartition = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.repartition.map(item => item.produit),
+                        datasets: [{
+                            data: data.repartition.map(item => item.montant),
+                            backgroundColor: [
+                                '#1a472a', '#2e7d32', '#4caf50', '#81c784',
+                                '#ffb74d', '#ff9800', '#f57c00', '#e65100'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            tooltip: {
+                                callbacks: {
+                                    label: ctx => {
+                                        const value = ctx.raw;
+                                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return `${ctx.label}: ${formatMontant(value)} (${percentage}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        function updateActivities(activities) {
+            const container = document.getElementById('activity-list');
+            if (!activities || activities.length === 0) {
+                container.innerHTML = '<p style="text-align: center; padding: 20px;">Aucune activité récente</p>';
+                return;
+            }
+
+            container.innerHTML = activities.map(act => `
+                <div class="activity-item">
+                    <div class="activity-icon">
+                        <i class="fas ${act.type === 'Décaissement' ? 'fa-hand-holding-usd' : 'fa-user-plus'}"></i>
+                    </div>
+                    <div class="activity-content">
+                        <div class="activity-title">
+                            <strong>${act.type}</strong> - ${act.client || ''}
+                        </div>
+                        <div class="activity-time">
+                            <i class="far fa-clock"></i> ${formatDate(act.date)}
+                            ${act.montant ? `<span class="activity-amount">${formatMontant(act.montant)}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function refreshActivities() {
+            try {
+                const response = await fetch('/api/dashboard-data', { credentials: 'include' });
+                const result = await response.json();
+                if (result.success) {
+                    updateActivities(result.data.activites);
+                }
+            } catch (error) {
+                console.error('Erreur rafraîchissement activités:', error);
+            }
+        }
+
+        // ============ CHARGEMENT DES VUES ============
+        function getEndpoint(type) {
+            const endpoints = {
+                'credits': 'credits-debloques',
+                'clients': 'nouveaux-clients',
+                'accounts': 'comptes-ouverts',
+                'unpaid': 'credits-impayes',
+                'active': 'clients-actifs',
+                'shares': 'parts-sociales',
+                'echeances': 'echeances-futures',
+                'remboursements': 'remboursements',
+                'balance': 'balance-j1',
+                'ledger': 'grand-livre',
+                'genre': 'analyse-genre/comparatif'
+            };
+            return endpoints[type] || type;
+        }
+
+        function getViewTitle(type) {
+            const titles = {
+                'credits': 'Crédits débloqués',
+                'clients': 'Nouveaux clients',
+                'accounts': 'Comptes ouverts',
+                'unpaid': 'Crédits impayés',
+                'active': 'Clients actifs',
+                'shares': 'Parts sociales',
+                'echeances': 'Échéances futures',
+                'remboursements': 'Remboursements',
+                'balance': 'Balance J-1',
+                'ledger': 'Grand livre',
+                'genre': 'Analyse par genre',
+                'analyse': 'Analyse des risques'
+            };
+            return titles[type] || type;
+        }
+
+        function getFiltersForView(type) {
+            const filters = {
+                'credits': `
+                    <div class="filter-group">
+                        <label>Agence</label>
+                        <select id="agence">
+                            <option value="">Toutes les agences</option>
+                            <option value="FAÎTIERE">FAÎTIERE</option>
+                            <option value="REMUCI : AGENCE-BONOUA">BONOUA</option>
+                            <option value="REMUCI : AGENCE-ABOISSO">ABOISSO</option>
+                            <option value="REMUCI : AGENCE-BASSAM">BASSAM</option>
+                            <option value="REMUCI : AGENCE-AGBOVILLE">AGBOVILLE</option>
+                            <option value="REMUCI : AGENCE-TIASSALE">TIASSALE</option>
+                            <option value="REMUCI : AGENCE-DIVO">DIVO</option>
+                            <option value="REMUCI : AGENCE-ADZOPE">ADZOPE</option>
+                            <option value="REMUCI : GRAND-LAHOU">GRAND-LAHOU</option>
+                            <option value="REMUCI : AGENCE-DABOU">DABOU</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Gestionnaire</label>
+                        <select id="gestionnaire">
+                            <option value="">Tous les gestionnaires</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Date début</label>
+                        <input type="date" id="date_debut" value="${getDefaultDateStart()}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Date fin</label>
+                        <input type="date" id="date_fin" value="${getToday()}">
+                    </div>
+                `,
+                'unpaid': `
+                    <div class="filter-group">
+                        <label>Agence</label>
+                        <select id="agence">
+                            <option value="">Toutes les agences</option>
+                            <option value="FAÎTIERE">FAÎTIERE</option>
+                            <option value="REMUCI : AGENCE-BONOUA">BONOUA</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Gestionnaire</label>
+                        <select id="gestionnaire">
+                            <option value="">Tous</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Type crédit</label>
+                        <select id="type_credit">
+                            <option value="">Tous</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Jours retard min</label>
+                        <input type="number" id="jours_retard_min" placeholder="Min">
+                    </div>
+                    <div class="filter-group">
+                        <label>Jours retard max</label>
+                        <input type="number" id="jours_retard_max" placeholder="Max">
+                    </div>
+                    <div class="filter-group">
+                        <label>Montant min</label>
+                        <input type="number" id="montant_min" placeholder="Min">
+                    </div>
+                    <div class="filter-group">
+                        <label>Montant max</label>
+                        <input type="number" id="montant_max" placeholder="Max">
+                    </div>
+                `,
+                'active': `
+                    <div class="filter-group">
+                        <label>Agence</label>
+                        <select id="agence">
+                            <option value="">Toutes</option>
+                            <option value="FAÎTIERE">FAÎTIERE</option>
+                            <option value="REMUCI : AGENCE-BONOUA">BONOUA</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Gestionnaire</label>
+                        <select id="gestionnaire">
+                            <option value="">Tous</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Type client</label>
+                        <select id="type_client">
+                            <option value="">Tous</option>
+                            <option value="PARTICULIER">Particulier</option>
+                            <option value="ENTREPRISE">Entreprise</option>
+                            <option value="GROUPE">Groupe</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Produit</label>
+                        <select id="produit">
+                            <option value="">Tous</option>
+                            <option value="EPARGNE">Épargne</option>
+                            <option value="CREDIT">Crédit</option>
+                            <option value="LES_DEUX">Les deux</option>
+                        </select>
+                    </div>
+                `,
+                'echeances': `
+                    <div class="filter-group">
+                        <label>Date début</label>
+                        <input type="date" id="date_debut" value="${getToday()}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Date fin</label>
+                        <input type="date" id="date_fin" value="${getToday(30)}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Agence</label>
+                        <select id="agence">
+                            <option value="">Toutes</option>
+                            <option value="FAÎTIERE">FAÎTIERE</option>
+                            <option value="REMUCI : AGENCE-BONOUA">BONOUA</option>
+                        </select>
+                    </div>
+                `,
+                'remboursements': `
+                    <div class="filter-group">
+                        <label>Date début</label>
+                        <input type="date" id="date_debut" value="${getDefaultDateStart(1)}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Date fin</label>
+                        <input type="date" id="date_fin" value="${getToday()}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Agence</label>
+                        <select id="agence">
+                            <option value="">Toutes</option>
+                            <option value="FAÎTIERE">FAÎTIERE</option>
+                            <option value="REMUCI : AGENCE-BONOUA">BONOUA</option>
+                        </select>
+                    </div>
+                `,
+                'balance': `
+                    <div class="filter-group">
+                        <label>Date</label>
+                        <input type="date" id="date_balance" value="${getYesterday()}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Agence</label>
+                        <select id="agence">
+                            <option value="">Toutes</option>
+                            <option value="FAÎTIERE">FAÎTIERE</option>
+                            <option value="REMUCI : AGENCE-BONOUA">BONOUA</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Compte début</label>
+                        <input type="text" id="compte_debut" value="0">
+                    </div>
+                    <div class="filter-group">
+                        <label>Compte fin</label>
+                        <input type="text" id="compte_fin" value="9">
+                    </div>
+                `,
+                'ledger': `
+                    <div class="filter-group">
+                        <label>Numéro de compte</label>
+                        <input type="text" id="compte" placeholder="Ex: 10111100" required>
+                    </div>
+                    <div class="filter-group">
+                        <label>Date début</label>
+                        <input type="date" id="date_debut" value="${getDefaultDateStart(1)}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Date fin</label>
+                        <input type="date" id="date_fin" value="${getToday()}">
+                    </div>
+                    <div class="filter-group">
+                        <label>Agence</label>
+                        <select id="agence">
+                            <option value="">Toutes</option>
+                            <option value="FAÎTIERE">FAÎTIERE</option>
+                            <option value="REMUCI : AGENCE-BONOUA">BONOUA</option>
+                        </select>
+                    </div>
+                `,
+                'genre': `
+                    <div class="filter-group">
+                        <label>Année</label>
+                        <select id="annee">
+                            <option value="2025">2025</option>
+                            <option value="2024">2024</option>
+                            <option value="2023">2023</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Agence</label>
+                        <select id="agence">
+                            <option value="">Toutes</option>
+                            <option value="FAÎTIERE">FAÎTIERE</option>
+                            <option value="REMUCI : AGENCE-BONOUA">BONOUA</option>
+                        </select>
+                    </div>
+                `
+            };
+            return filters[type] || '';
+        }
+
+        async function loadView(type) {
+    // Interface spécifique pour les crédits débloqués
+    if (type === 'credits') {
+        renderCreditsInterface();
+        return;
+    }
+    
+    const content = document.getElementById('dynamic-content');
+    
+    content.innerHTML = `
+        <div class="filters-panel">
+            <div class="table-header">
+                <div class="table-title">
+                    <i class="fas ${getIconForView(type)}"></i>
+                    ${getViewTitle(type)}
+                </div>
+            </div>
+            
+            <div class="filters-grid" id="filters-${type}">
+                ${getFiltersForView(type)}
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="fetchData('${type}')">
+                    <i class="fas fa-search"></i> Rechercher
+                </button>
+                <button class="btn btn-success" onclick="exportToExcel('${type}')">
+                    <i class="fas fa-file-excel"></i> Exporter Excel
+                </button>
+                <button class="btn btn-danger" onclick="exportToPDF('${type}')">
+                    <i class="fas fa-file-pdf"></i> Exporter PDF
+                </button>
+            </div>
+        </div>
+        
+        <div class="table-container">
+            <div id="results-${type}">
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <p>Sélectionnez des filtres et cliquez sur "Rechercher"</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Charger les listes déroulantes
+    if (type === 'credits' || type === 'unpaid' || type === 'active' || type === 'echeances') {
+        loadGestionnaires();
+    }
+    if (type === 'unpaid') {
+        loadTypesCredit();
+    }
+}
+        function getIconForView(type) {
+            const icons = {
+                'credits': 'fa-hand-holding-usd',
+                'clients': 'fa-user-plus',
+                'accounts': 'fa-piggy-bank',
+                'unpaid': 'fa-exclamation-triangle',
+                'active': 'fa-user-check',
+                'shares': 'fa-chart-pie',
+                'echeances': 'fa-calendar-alt',
+                'remboursements': 'fa-money-check-alt',
+                'balance': 'fa-balance-scale',
+                'ledger': 'fa-book',
+                'genre': 'fa-venus-mars',
+                'analyse': 'fa-chart-bar'
+            };
+            return icons[type] || 'fa-table';
+        }
+
+        // ============ CHARGEMENT DES DONNÉES ============
+        async function loadGestionnaires() {
+    try {
+        // Récupérer l'agence sélectionnée
+        const agenceSelect = document.getElementById('agence');
+        const agence = agenceSelect ? agenceSelect.value : '';
+        
+        console.log('🔄 Chargement des gestionnaires pour agence:', agence);
+        
+        let url = '/api/gestionnaires';
+        if (agence) {
+            url += `?agence=${encodeURIComponent(agence)}`;
+        }
+        
+        const response = await fetch(url, { credentials: 'include' });
+        const result = await response.json();
+        
+        const select = document.getElementById('gestionnaire');
+        if (!select) return;
+        
+        if (result.success && result.data && result.data.length > 0) {
+            select.innerHTML = '<option value="">Tous les gestionnaires</option>';
+            
+            // Ajouter les gestionnaires spécifiques à l'agence
+            result.data.forEach(g => {
+                if (g.nom && g.nom.trim() !== '') {
+                    const option = document.createElement('option');
+                    option.value = g.nom;
+                    option.textContent = g.nom;
+                    select.appendChild(option);
+                }
+            });
+            
+            console.log(`✅ ${result.data.length} gestionnaires chargés pour l'agence ${agence || 'toutes'}`);
+        } else {
+            select.innerHTML = '<option value="">Aucun gestionnaire</option>';
+        }
+    } catch (error) {
+        console.error('❌ Erreur chargement gestionnaires:', error);
+        const select = document.getElementById('gestionnaire');
+        if (select) {
+            select.innerHTML = '<option value="">Erreur de chargement</option>';
+        }
+    }
+}
+
+function initAgenceListener() {
+    const agenceSelect = document.getElementById('agence');
+    if (agenceSelect) {
+        agenceSelect.addEventListener('change', function() {
+            console.log('🎯 Agence changée vers:', this.value);
+            loadGestionnaires(); // Recharger les gestionnaires
+        });
+    }
+}
+
+        async function loadTypesCredit() {
+            try {
+                const response = await fetch('/api/types-credit', { credentials: 'include' });
+                const result = await response.json();
+                
+                const select = document.getElementById('type_credit');
+                if (select && result.success && result.data) {
+                    select.innerHTML = '<option value="">Tous les types</option>';
+                    result.data.forEach(t => {
+                        if (t.nom) {
+                            const option = document.createElement('option');
+                            option.value = t.nom;
+                            option.textContent = t.nom;
+                            select.appendChild(option);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Erreur chargement types crédit:', error);
+            }
+        }
+
+        async function fetchData(type) {
+            const resultsDiv = document.getElementById(`results-${type}`);
+            if (!resultsDiv) return;
+            
+            resultsDiv.innerHTML = `
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <p>Chargement des données...</p>
+                </div>
+            `;
+
+            try {
+                let url = `/api/${getEndpoint(type)}?`;
+                const params = [];
+                
+                // Paramètres communs
+                const agence = document.getElementById('agence')?.value;
+                if (agence) params.push(`agence=${encodeURIComponent(agence)}`);
+                
+                const gestionnaire = document.getElementById('gestionnaire')?.value;
+                if (gestionnaire && gestionnaire !== 'Tous les gestionnaires') {
+                    params.push(`gestionnaire=${encodeURIComponent(gestionnaire)}`);
+                }
+                
+                // Paramètres spécifiques
+                if (type === 'credits' || type === 'clients' || type === 'echeances' || type === 'remboursements') {
+                    const date_debut = document.getElementById('date_debut')?.value;
+                    const date_fin = document.getElementById('date_fin')?.value;
+                    if (date_debut) params.push(`date_debut=${encodeURIComponent(date_debut)}`);
+                    if (date_fin) params.push(`date_fin=${encodeURIComponent(date_fin)}`);
+                }
+                
+                if (type === 'unpaid') {
+                    const type_credit = document.getElementById('type_credit')?.value;
+                    const client = document.getElementById('client')?.value;
+                    const jours_retard_min = document.getElementById('jours_retard_min')?.value;
+                    const jours_retard_max = document.getElementById('jours_retard_max')?.value;
+                    const montant_min = document.getElementById('montant_min')?.value;
+                    const montant_max = document.getElementById('montant_max')?.value;
+                    
+                    if (type_credit) params.push(`type_credit=${encodeURIComponent(type_credit)}`);
+                    if (client) params.push(`client=${encodeURIComponent(client)}`);
+                    if (jours_retard_min) params.push(`jours_retard_min=${jours_retard_min}`);
+                    if (jours_retard_max) params.push(`jours_retard_max=${jours_retard_max}`);
+                    if (montant_min) params.push(`montant_min=${montant_min}`);
+                    if (montant_max) params.push(`montant_max=${montant_max}`);
+                }
+                
+                if (type === 'active') {
+                    const type_client = document.getElementById('type_client')?.value;
+                    const produit = document.getElementById('produit')?.value;
+                    if (type_client) params.push(`type_client=${encodeURIComponent(type_client)}`);
+                    if (produit) params.push(`produit=${encodeURIComponent(produit)}`);
+                }
+                
+                if (type === 'balance') {
+                    const date_balance = document.getElementById('date_balance')?.value;
+                    const compte_debut = document.getElementById('compte_debut')?.value;
+                    const compte_fin = document.getElementById('compte_fin')?.value;
+                    if (date_balance) params.push(`date=${encodeURIComponent(date_balance)}`);
+                    if (compte_debut) params.push(`compte_debut=${encodeURIComponent(compte_debut)}`);
+                    if (compte_fin) params.push(`compte_fin=${encodeURIComponent(compte_fin)}`);
+                }
+                
+                if (type === 'ledger') {
+                    const compte = document.getElementById('compte')?.value;
+                    const date_debut = document.getElementById('date_debut')?.value;
+                    const date_fin = document.getElementById('date_fin')?.value;
+                    if (compte) params.push(`compte=${encodeURIComponent(compte)}`);
+                    if (date_debut) params.push(`date_debut=${encodeURIComponent(date_debut)}`);
+                    if (date_fin) params.push(`date_fin=${encodeURIComponent(date_fin)}`);
+                }
+                
+                if (type === 'genre') {
+                    const annee = document.getElementById('annee')?.value;
+                    if (annee) params.push(`annee=${encodeURIComponent(annee)}`);
+                }
+                
+                // Pagination
+                params.push(`page=1`);
+                params.push(`limit=50`);
+                
+                url += params.join('&');
+                
+                const response = await fetch(url, { credentials: 'include' });
+                
+                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+                
+                const result = await response.json();
+                
+                if (result.success && result.data && result.data.length > 0) {
+                    displayResults(type, result.data, result);
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div style="text-align: center; padding: 40px;">
+                            <i class="fas fa-inbox" style="font-size: 3rem; color: #94a3b8; margin-bottom: 16px;"></i>
+                            <p style="color: #64748b;">Aucune donnée trouvée avec ces critères</p>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('Erreur:', error);
+                resultsDiv.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ef4444;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 16px;"></i>
+                        <p><strong>Erreur: ${error.message}</strong></p>
+                        <button class="btn btn-primary" onclick="fetchData('${type}')" style="margin-top: 20px;">
+                            <i class="fas fa-redo"></i> Réessayer
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function displayResults(type, data, meta = {}) {
+            const resultsDiv = document.getElementById(`results-${type}`);
+            if (!resultsDiv || !data.length) return;
+            
+            const headers = Object.keys(data[0]);
+            const total = meta.total || data.length;
+            const page = meta.page || 1;
+            const limit = meta.limit || 50;
+            const pages = meta.pages || Math.ceil(total / limit);
+            
+            let tableHtml = `
+                <div class="table-header">
+                    <div class="table-title">
+                        <i class="fas fa-list"></i>
+                        ${total} résultat(s) trouvé(s)
+                    </div>
+                    <div class="table-actions">
+                        <span class="page-info">Page ${page} sur ${pages}</span>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            ${headers.map(header => `<th>${header}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            data.slice(0, limit).forEach(row => {
+                tableHtml += '<tr>';
+                headers.forEach(header => {
+                    let value = row[header];
+                    if (value === null || value === undefined) value = '';
+                    else if (typeof value === 'number') {
+                        if (header.toLowerCase().includes('montant') || header.toLowerCase().includes('solde') || header.toLowerCase().includes('capital')) {
+                            value = formatMontant(value);
+                        } else {
+                            value = formatNumber(value);
+                        }
+                    } else if (header.toLowerCase().includes('date') && value) {
+                        value = formatDate(value);
+                    }
+                    tableHtml += `<td>${value}</td>`;
+                });
+                tableHtml += '</tr>';
+            });
+            
+            tableHtml += `
+                    </tbody>
+                </table>
+                <div class="pagination">
+                    <button class="page-btn ${page === 1 ? 'disabled' : ''}" 
+                            onclick="changePage('${type}', ${page - 1})" 
+                            ${page === 1 ? 'disabled' : ''}>
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="page-info">Page ${page} / ${pages}</span>
+                    <button class="page-btn ${page === pages ? 'disabled' : ''}" 
+                            onclick="changePage('${type}', ${page + 1})"
+                            ${page === pages ? 'disabled' : ''}>
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            `;
+            
+            resultsDiv.innerHTML = tableHtml;
+        }
+
+        async function changePage(type, newPage) {
+            // Recharger avec la nouvelle page
+            await fetchData(type);
+        }
+
+        // ============ EXPORTS ============
+        async function exportToExcel(type) {
+            const endpoint = getEndpoint(type);
+            if (!endpoint) return;
+            
+            try {
+                const params = new URLSearchParams();
+                
+                // Récupérer les filtres comme dans fetchData
+                const agence = document.getElementById('agence')?.value;
+                if (agence) params.append('agence', agence);
+                
+                const gestionnaire = document.getElementById('gestionnaire')?.value;
+                if (gestionnaire && gestionnaire !== 'Tous les gestionnaires') {
+                    params.append('gestionnaire', gestionnaire);
+                }
+                
+                if (type === 'credits' || type === 'clients' || type === 'echeances' || type === 'remboursements') {
+                    const date_debut = document.getElementById('date_debut')?.value;
+                    const date_fin = document.getElementById('date_fin')?.value;
+                    if (date_debut) params.append('date_debut', date_debut);
+                    if (date_fin) params.append('date_fin', date_fin);
+                }
+                
+                if (type === 'unpaid') {
+                    const type_credit = document.getElementById('type_credit')?.value;
+                    if (type_credit) params.append('type_credit', type_credit);
+                }
+                
+                if (type === 'active') {
+                    const type_client = document.getElementById('type_client')?.value;
+                    const produit = document.getElementById('produit')?.value;
+                    if (type_client) params.append('type_client', type_client);
+                    if (produit) params.append('produit', produit);
+                }
+                
+                if (type === 'balance') {
+                    const date_balance = document.getElementById('date_balance')?.value;
+                    const compte_debut = document.getElementById('compte_debut')?.value;
+                    const compte_fin = document.getElementById('compte_fin')?.value;
+                    if (date_balance) params.append('date', date_balance);
+                    if (compte_debut) params.append('compte_debut', compte_debut);
+                    if (compte_fin) params.append('compte_fin', compte_fin);
+                }
+                
+                if (type === 'ledger') {
+                    const compte = document.getElementById('compte')?.value;
+                    if (compte) params.append('compte', compte);
+                }
+                
+                const url = `/api/export-excel/${endpoint}?${params.toString()}`;
+                window.location.href = url;
+                
+            } catch (error) {
+                console.error('Erreur export:', error);
+                showNotification('Erreur lors de l\'export', 'error');
+            }
+        }
+
+        async function exportToPDF(type) {
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('landscape');
+                
+                doc.setFontSize(16);
+                doc.text(`${getViewTitle(type)} - ${new Date().toLocaleDateString('fr-FR')}`, 14, 20);
+                
+                // Récupérer les données affichées
+                const table = document.querySelector('#results-' + type + ' table');
+                if (table) {
+                    const headers = [];
+                    const rows = [];
+                    
+                    // Extraire les en-têtes
+                    table.querySelectorAll('thead th').forEach(th => {
+                        headers.push(th.textContent);
+                    });
+                    
+                    // Extraire les données (max 50 lignes pour le PDF)
+                    table.querySelectorAll('tbody tr').slice(0, 50).forEach(tr => {
+                        const row = [];
+                        tr.querySelectorAll('td').forEach(td => {
+                            row.push(td.textContent);
+                        });
+                        rows.push(row);
+                    });
+                    
+                    doc.autoTable({
+                        head: [headers],
+                        body: rows,
+                        startY: 30,
+                        styles: { fontSize: 8 },
+                        headStyles: { fillColor: [26, 71, 42] }
+                    });
+                }
+                
+                doc.save(`${type}_${new Date().toISOString().split('T')[0]}.pdf`);
+                
+            } catch (error) {
+                console.error('Erreur PDF:', error);
+                showNotification('Erreur lors de la génération du PDF', 'error');
+            }
+        }
+
+        // ============ SERVICE WORKER ============
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker enregistré'))
+                    .catch(err => console.log('Erreur Service Worker:', err));
+            });
+        }
+
+        // ============ FONCTIONS UTILITAIRES SUPPLÉMENTAIRES ============
+        function getYesterday() {
+            const date = new Date();
+            date.setDate(date.getDate() - 1);
+            return date.toISOString().split('T')[0];
+        }
+
+        function getToday(offset = 0) {
+            const date = new Date();
+            if (offset) {
+                date.setDate(date.getDate() + offset);
+            }
+            return date.toISOString().split('T')[0];
+        }
+
+        // Initialisation
+        console.log('🚀 Application REMU-CI VisionExtract chargée');
+
+
+    
+    // ============ INTERFACE CRÉDITS DÉBLOQUÉS ============
+
+function renderCreditsInterface() {
+    const content = document.getElementById('dynamic-content');
+    
+    content.innerHTML = `
+        <div class="filters-panel">
+            <div class="table-header">
+                <div class="table-title">
+                    <i class="fas fa-hand-holding-usd" style="color: #1a472a;"></i>
+                    Crédits débloqués
+                </div>
+            </div>
+            
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label><i class="fas fa-building"></i> Agence</label>
+                    <select id="agence">
+                        <option value="">Toutes les agences</option>
+                        <option value="FAÎTIERE">FAÎTIERE</option>
+                        <option value="REMUCI : AGENCE-BONOUA">REMUCI : AGENCE-BONOUA</option>
+                        <option value="REMUCI : AGENCE-ABOISSO">REMUCI : AGENCE-ABOISSO</option>
+                        <option value="REMUCI : AGENCE-BASSAM">REMUCI : AGENCE-BASSAM</option>
+                        <option value="REMUCI : AGENCE-AGBOVILLE">	REMUCI : AGENCE-AGBOVILLE</option>
+                        <option value="REMUCI : AGENCE-TIASSALE">REMUCI : AGENCE-TIASSALE</option>
+                        <option value="REMUCI : AGENCE-DIVO">REMUCI : AGENCE-DIVO</option>
+                        <option value="REMUCI : AGENCE-ADZOPE">REMUCI : AGENCE-ADZOPE</option>
+                        <option value="REMUCI : GRAND-LAHOU">REMUCI : AGENCE-LAHOU</option>
+                        <option value="REMUCI : AGENCE-DABOU">REMUCI : AGENCE-DABOU</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label><i class="fas fa-user-tie"></i> Gestionnaire</label>
+                    <select id="gestionnaire">
+                        <option value="">Tous les gestionnaires</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label><i class="fas fa-calendar"></i> Date début</label>
+                    <input type="date" id="date_debut" value="${getDefaultDateStart()}">
+                </div>
+                
+                <div class="filter-group">
+                    <label><i class="fas fa-calendar-check"></i> Date fin</label>
+                    <input type="date" id="date_fin" value="${getToday()}">
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="loadCreditsData()">
+                    <i class="fas fa-search"></i> Rechercher
+                </button>
+                <button class="btn btn-success" onclick="exportCreditsExcel()">
+                    <i class="fas fa-file-excel"></i> Exporter Excel
+                </button>
+                <button class="btn btn-danger" onclick="exportCreditsPDF()">
+                    <i class="fas fa-file-pdf"></i> Exporter PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Section des KPI -->
+        <div class="stats-mini-grid" id="credits-kpi" style="display: none;">
+            <div class="stats-mini-card">
+                <div class="stats-mini-value" id="total-montant">0</div>
+                <div class="stats-mini-label">Montant total</div>
+            </div>
+            <div class="stats-mini-card">
+                <div class="stats-mini-value" id="montant-moyen">0</div>
+                <div class="stats-mini-label">Montant moyen</div>
+            </div>
+            <div class="stats-mini-card">
+                <div class="stats-mini-value" id="nb-credits">0</div>
+                <div class="stats-mini-label">Nombre de crédits</div>
+            </div>
+            <div class="stats-mini-card">
+                <div class="stats-mini-value" id="montant-max">0</div>
+                <div class="stats-mini-label">Montant max</div>
+            </div>
+        </div>
+
+        <!-- Graphiques -->
+        <div class="charts-row" id="credits-charts" style="display: none;">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">
+                        <i class="fas fa-chart-pie"></i>
+                        Répartition par produit
+                    </div>
+                </div>
+                <canvas id="chart-credits-produits" style="height: 250px;"></canvas>
+            </div>
+            
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">
+                        <i class="fas fa-chart-bar"></i>
+                        Top produits
+                    </div>
+                </div>
+                <canvas id="chart-credits-top" style="height: 250px;"></canvas>
+            </div>
+        </div>
+
+        <!-- Tableau des résultats -->
+        <div class="table-container">
+            <div id="credits-results">
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <p>Sélectionnez des filtres et cliquez sur "Rechercher"</p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Charger les gestionnaires
+    loadGestionnaires();
+    
+    // Ajouter l'écouteur pour le changement d'agence
+    initAgenceListener();
+}
+
+// Fonction pour charger les données
+async function loadCreditsData() {
+    const resultsDiv = document.getElementById('credits-results');
+    const kpiDiv = document.getElementById('credits-kpi');
+    const chartsDiv = document.getElementById('credits-charts');
+    
+    resultsDiv.innerHTML = `
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>Chargement des données...</p>
+        </div>
+    `;
+    
+    // Cacher les KPI et graphiques pendant le chargement
+    if (kpiDiv) kpiDiv.style.display = 'none';
+    if (chartsDiv) chartsDiv.style.display = 'none';
+
+    try {
+        const params = new URLSearchParams();
+        
+        const agence = document.getElementById('agence')?.value;
+        const gestionnaire = document.getElementById('gestionnaire')?.value;
+        const date_debut = document.getElementById('date_debut')?.value;
+        const date_fin = document.getElementById('date_fin')?.value;
+        
+        if (agence) params.append('agence', agence);
+        if (gestionnaire && gestionnaire !== 'Tous les gestionnaires') {
+            params.append('gestionnaire', gestionnaire);
+        }
+        if (date_debut) params.append('date_debut', date_debut);
+        if (date_fin) params.append('date_fin', date_fin);
+        
+        params.append('page', '1');
+        params.append('limit', '50');
+        
+        console.log('🔍 URL appelée:', `/api/credits-debloques?${params.toString()}`);
+        
+        const response = await fetch(`/api/credits-debloques?${params.toString()}`, {
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Réponse erreur:', errorText);
+            throw new Error(`Erreur HTTP: ${response.status} - ${errorText.substring(0, 100)}`);
+        }
+        
+        const result = await response.json();
+        console.log('📊 Résultat API:', result);
+        
+        if (result.success && result.data && result.data.length > 0) {
+            displayCreditsResults(result);
+            
+            // Calculer les stats nous-mêmes si elles ne viennent pas de l'API
+            const stats = {
+                total_montant: result.data.reduce((sum, item) => sum + (item.Montant || 0), 0),
+                montant_moyen: result.data.reduce((sum, item) => sum + (item.Montant || 0), 0) / result.data.length,
+                nb_credits: result.data.length,
+                montant_max: Math.max(...result.data.map(item => item.Montant || 0))
+            };
+            
+            updateCreditsKPIs(stats);
+            
+            // Créer une analyse simple par produit
+            const analyse = {};
+            result.data.forEach(item => {
+                const produit = item.Produit || 'Non spécifié';
+                if (!analyse[produit]) {
+                    analyse[produit] = { nombre: 0, montant: 0 };
+                }
+                analyse[produit].nombre += 1;
+                analyse[produit].montant += (item.Montant || 0);
+            });
+            
+            const analyseArray = Object.keys(analyse).map(produit => ({
+                produit: produit,
+                nombre: analyse[produit].nombre,
+                montant: analyse[produit].montant
+            }));
+            
+            updateCreditsCharts(analyseArray);
+            
+            if (kpiDiv) kpiDiv.style.display = 'grid';
+            if (chartsDiv) chartsDiv.style.display = 'grid';
+        } else {
+            resultsDiv.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-inbox" style="font-size: 3rem; color: #94a3b8; margin-bottom: 16px;"></i>
+                    <p style="color: #64748b;">Aucun crédit débloqué trouvé pour cette période</p>
+                </div>
+            `;
+        }
+        
+    } catch (error) {
+        console.error('❌ Erreur complète:', error);
+        resultsDiv.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #ef4444;">
+                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 16px;"></i>
+                <p><strong>Erreur: ${error.message}</strong></p>
+                <button class="btn btn-primary" onclick="loadCreditsData()" style="margin-top: 20px;">
+                    <i class="fas fa-redo"></i> Réessayer
+                </button>
+            </div>
+        `;
+    }
+}
+
+// Affichage des résultats
+function displayCreditsResults(result) {
+    const resultsDiv = document.getElementById('credits-results');
+    const data = result.data;
+    const total = result.total;
+    const page = result.page;
+    const pages = result.pages;
+    
+    const headers = Object.keys(data[0]);
+    
+    let tableHtml = `
+        <div class="table-header">
+            <div class="table-title">
+                <i class="fas fa-list"></i>
+                ${total} résultat(s) trouvé(s)
+            </div>
+            <div class="table-actions">
+                <span class="page-info">Page ${page} sur ${pages}</span>
+            </div>
+        </div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        ${headers.map(header => `<th>${header}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    data.forEach(row => {
+        tableHtml += '<tr>';
+        headers.forEach(header => {
+            let value = row[header];
+            if (value === null || value === undefined) value = '';
+            else if (header.includes('Montant') || header.includes('Taux')) {
+                if (typeof value === 'number') {
+                    value = new Intl.NumberFormat('fr-FR').format(value);
+                    if (header.includes('Taux')) value += '%';
+                }
+            } else if (header.includes('Date') && value) {
+                value = formatDate(value);
+            }
+            tableHtml += `<td>${value}</td>`;
+        });
+        tableHtml += '</tr>';
+    });
+    
+    tableHtml += `
+                </tbody>
+            </table>
+        </div>
+        <div class="pagination">
+            <button class="page-btn ${page === 1 ? 'disabled' : ''}" 
+                    onclick="changeCreditsPage(${page - 1})" 
+                    ${page === 1 ? 'disabled' : ''}>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="page-info">Page ${page} / ${pages}</span>
+            <button class="page-btn ${page === pages ? 'disabled' : ''}" 
+                    onclick="changeCreditsPage(${page + 1})"
+                    ${page === pages ? 'disabled' : ''}>
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    `;
+    
+    resultsDiv.innerHTML = tableHtml;
+}
+
+// Mise à jour des KPI
+function updateCreditsKPIs(stats) {
+    document.getElementById('total-montant').textContent = formatMontant(stats.total_montant);
+    document.getElementById('montant-moyen').textContent = formatMontant(stats.montant_moyen);
+    document.getElementById('nb-credits').textContent = stats.nb_credits;
+    document.getElementById('montant-max').textContent = formatMontant(stats.montant_max);
+}
+
+// Mise à jour des graphiques
+function updateCreditsCharts(analyse) {
+    // Détruire les anciens graphiques
+    if (window.creditsChart1) window.creditsChart1.destroy();
+    if (window.creditsChart2) window.creditsChart2.destroy();
+    
+    if (!analyse || analyse.length === 0) return;
+    
+    // Préparer les données
+    const produits = analyse.map(item => item.produit || 'Non spécifié');
+    const montants = analyse.map(item => item.montant);
+    const nombres = analyse.map(item => item.nombre);
+    
+    // Graphique circulaire (répartition par montant)
+    const ctx1 = document.getElementById('chart-credits-produits')?.getContext('2d');
+    if (ctx1) {
+        window.creditsChart1 = new Chart(ctx1, {
+            type: 'doughnut',
+            data: {
+                labels: produits,
+                datasets: [{
+                    data: montants,
+                    backgroundColor: [
+                        '#1a472a', '#2e7d32', '#4caf50', '#81c784',
+                        '#ffb74d', '#ff9800', '#f57c00', '#e65100'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const value = ctx.raw;
+                                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${ctx.label}: ${formatMontant(value)} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Graphique à barres (nombre de crédits par produit)
+    const ctx2 = document.getElementById('chart-credits-top')?.getContext('2d');
+    if (ctx2) {
+        window.creditsChart2 = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: produits,
+                datasets: [{
+                    label: 'Nombre de crédits',
+                    data: nombres,
+                    backgroundColor: '#1a472a',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                }
+            }
+        });
+    }
+}
+
+// Changement de page
+async function changeCreditsPage(newPage) {
+    const params = new URLSearchParams();
+    
+    const agence = document.getElementById('agence')?.value;
+    const gestionnaire = document.getElementById('gestionnaire')?.value;
+    const date_debut = document.getElementById('date_debut')?.value;
+    const date_fin = document.getElementById('date_fin')?.value;
+    
+    if (agence) params.append('agence', agence);
+    if (gestionnaire && gestionnaire !== 'Tous les gestionnaires') {
+        params.append('gestionnaire', gestionnaire);
+    }
+    if (date_debut) params.append('date_debut', date_debut);
+    if (date_fin) params.append('date_fin', date_fin);
+    
+    params.append('page', newPage);
+    params.append('limit', '50');
+    
+    try {
+        const response = await fetch(`/api/credits-debloques?${params.toString()}`, {
+            credentials: 'include'
+        });
+        const result = await response.json();
+        if (result.success) {
+            displayCreditsResults(result);
+            updateCreditsKPIs(result.stats);
+            updateCreditsCharts(result.analyse);
+        }
+    } catch (error) {
+        console.error('Erreur changement de page:', error);
+    }
+}
+
+// Export Excel
+async function exportCreditsExcel() {
+    const params = new URLSearchParams();
+    
+    const agence = document.getElementById('agence')?.value;
+    const gestionnaire = document.getElementById('gestionnaire')?.value;
+    const date_debut = document.getElementById('date_debut')?.value;
+    const date_fin = document.getElementById('date_fin')?.value;
+    
+    if (agence) params.append('agence', agence);
+    if (gestionnaire && gestionnaire !== 'Tous les gestionnaires') {
+        params.append('gestionnaire', gestionnaire);
+    }
+    if (date_debut) params.append('date_debut', date_debut);
+    if (date_fin) params.append('date_fin', date_fin);
+    
+    window.location.href = `/api/export-excel/credits-debloques?${params.toString()}`;
+}
+
+// Export PDF
+async function exportCreditsPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('landscape');
+    
+    doc.setFontSize(16);
+    doc.text('Crédits débloqués', 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Période: ${document.getElementById('date_debut')?.value} au ${document.getElementById('date_fin')?.value}`, 14, 30);
+    
+    // Récupérer les données du tableau
+    const table = document.querySelector('#credits-results table');
+    if (table) {
+        const headers = [];
+        const rows = [];
+        
+        table.querySelectorAll('thead th').forEach(th => {
+            headers.push(th.textContent);
+        });
+        
+        table.querySelectorAll('tbody tr').slice(0, 20).forEach(tr => {
+            const row = [];
+            tr.querySelectorAll('td').forEach(td => {
+                row.push(td.textContent);
+            });
+            rows.push(row);
+        });
+        
+        doc.autoTable({
+            head: [headers],
+            body: rows,
+            startY: 40,
+            styles: { fontSize: 8 },
+            headStyles: { fillColor: [26, 71, 42] }
+        });
+    }
+    
+    doc.save(`credits_debloques_${getToday()}.pdf`);
+}
+
+// Associer au menu
+// Modifier la fonction loadView existante pour gérer 'credits'
+// Cherchez dans votre code la fonction loadView et ajoutez ce cas :
+// Dans la fonction loadView, après le switch ou les conditions, ajoutez :
+/*
+if (type === 'credits') {
+    renderCreditsInterface();
+    return;
+}
+*/
+    </script>
+</body>
+</html>

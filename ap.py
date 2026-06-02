@@ -57,7 +57,7 @@ limiter = Limiter(
 )
 
 # ============================================================================
-# CACHE AMÉLIORÉ
+# CACHE POUR ACCÉLÉRER LE DASHBOARD
 # ============================================================================
 
 dashboard_cache = {
@@ -66,13 +66,15 @@ dashboard_cache = {
 }
 
 def get_cached_dashboard():
+    """Récupère les données du cache si elles datent de moins de 5 minutes"""
     if dashboard_cache['timestamp'] is not None:
         age = (datetime.now() - dashboard_cache['timestamp']).total_seconds()
-        if age < 180:  # 3 minutes de cache (réduit)
+        if age < 300:  # 5 minutes de cache
             return dashboard_cache['data']
     return None
 
 def set_cached_dashboard(data):
+    """Met en cache les données du dashboard"""
     dashboard_cache['data'] = data
     dashboard_cache['timestamp'] = datetime.now()
 
@@ -81,6 +83,7 @@ def set_cached_dashboard(data):
 # ============================================================================
 
 def convert_to_serializable(obj):
+    """Convertit les types numpy en types Python standard pour JSON"""
     if isinstance(obj, (np.int64, np.int32)):
         return int(obj)
     if isinstance(obj, (np.float64, np.float32)):
@@ -96,6 +99,7 @@ def convert_to_serializable(obj):
     return obj
 
 def dataframe_to_json(df):
+    """Convertit un DataFrame en JSON compatible"""
     if df is None or df.empty:
         return []
     records = df.to_dict(orient='records')
@@ -180,13 +184,30 @@ def get_connection():
             "Server=localhost\\SQLEXPRESS;"
             "Database=REMUCI_VISION;"
             "Trusted_Connection=yes;"
-            "Timeout=15;",  # Timeout réduit à 15 secondes
+            "Timeout=30;",
             autocommit=True
         )
+        print("Connexion SQL Server réussie")
         return conn
     except Exception as e:
-        logger.error(f"Erreur de connexion SQL: {e}")
+        print(f"Erreur de connexion SQL: {e}")
         return None
+
+def clean_dataframe(df):
+    if df.empty:
+        return df
+    numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
+    for col in numeric_cols:
+        df[col] = df[col].fillna(0)
+    text_cols = df.select_dtypes(include=['object']).columns
+    for col in text_cols:
+        df[col] = df[col].fillna('')
+    return df
+
+def format_montant(montant):
+    if montant is None:
+        return "0"
+    return f"{int(montant):,}".replace(",", " ")
 
 def get_today():
     return datetime.now().strftime('%Y-%m-%d')
@@ -209,6 +230,7 @@ def health_check():
 
 @app.route("/api/clear-cache", methods=['POST'])
 def clear_cache():
+    """Vide le cache du dashboard"""
     global dashboard_cache
     dashboard_cache = {'data': None, 'timestamp': None}
     return jsonify({"success": True, "message": "Cache vidé"})
@@ -238,7 +260,7 @@ def get_gestionnaires():
 
 @app.route("/api/dashboard-data", methods=["GET"])
 def dashboard_data():
-    # Vérifier le cache (3 minutes)
+    # Vérifier le cache d'abord
     cached_data = get_cached_dashboard()
     if cached_data is not None:
         return jsonify({"success": True, "data": cached_data, "cached": True})
@@ -248,30 +270,30 @@ def dashboard_data():
         return jsonify({"success": False, "error": "Connexion impossible"}), 500
     
     try:
-        # ULTRA-OPTIMISATION : UNE SEULE REQUÊTE POUR PRESQUE TOUT
-        start_time = time.time()
-        
-        query_unique = """
-        WITH KPIS AS (
-            SELECT 
-                -- KPIs principaux
-                ISNULL(SUM(CASE WHEN date_effet >= DATEADD(day, -30, GETDATE()) THEN mtt_pret ELSE 0 END), 0) as credits_total,
-                COUNT(CASE WHEN date_effet >= DATEADD(day, -30, GETDATE()) THEN 1 END) as credits_count,
-                COUNT(DISTINCT CASE WHEN date_adhesion >= DATEADD(day, -30, GETDATE()) THEN code_client END) as nouveaux_clients,
-                COUNT(*) as total_dossiers,
-                SUM(CASE WHEN date_fin_echeance < GETDATE() AND (date_solde IS NULL OR date_solde > date_fin_echeance) THEN 1 ELSE 0 END) as impayes_count,
-                COUNT(DISTINCT CASE WHEN date_effet >= DATEADD(month, -3, GETDATE()) THEN code_client END) as clients_actifs,
-                ISNULL(SUM(CASE WHEN date_solde IS NULL OR date_solde > GETDATE() THEN mtt_pret ELSE 0 END), 0) as encours_total,
-                CASE WHEN SUM(mtt_pret) > 0 
-                THEN (SUM(CASE WHEN date_solde IS NOT NULL AND date_solde <= GETDATE() THEN mtt_pret ELSE 0 END) * 100.0 / SUM(mtt_pret))
-                ELSE 0 END as taux_recouvrement
-            FROM dbo.extra_credits_view
-            WHERE date_effet IS NOT NULL
-        )
-        SELECT * FROM KPIS
+        # OPTIMISATION: Une seule requête pour plusieurs KPIs
+        query_kpis = """
+        SELECT 
+            -- Crédits débloqués 30j
+            ISNULL(SUM(CASE WHEN date_effet >= DATEADD(day, -30, GETDATE()) THEN mtt_pret ELSE 0 END), 0) as credits_total,
+            COUNT(CASE WHEN date_effet >= DATEADD(day, -30, GETDATE()) THEN 1 END) as credits_count,
+            -- Nouveaux clients 30j
+            COUNT(DISTINCT CASE WHEN date_adhesion >= DATEADD(day, -30, GETDATE()) THEN code_client END) as nouveaux_clients,
+            -- Taux d'impayés
+            COUNT(*) as total_dossiers,
+            SUM(CASE WHEN date_fin_echeance < GETDATE() AND (date_solde IS NULL OR date_solde > date_fin_echeance) THEN 1 ELSE 0 END) as impayes_count,
+            -- Clients actifs 3 mois
+            COUNT(DISTINCT CASE WHEN date_effet >= DATEADD(month, -3, GETDATE()) THEN code_client END) as clients_actifs,
+            -- Encours total
+            ISNULL(SUM(CASE WHEN date_solde IS NULL OR date_solde > GETDATE() THEN mtt_pret ELSE 0 END), 0) as encours_total,
+            -- Taux recouvrement
+            CASE WHEN SUM(mtt_pret) > 0 
+            THEN (SUM(CASE WHEN date_solde IS NOT NULL AND date_solde <= GETDATE() THEN mtt_pret ELSE 0 END) * 100.0 / SUM(mtt_pret))
+            ELSE 0 END as taux_recouvrement
+        FROM dbo.extra_credits_view
+        WHERE date_effet IS NOT NULL
         """
         
-        df_kpis = pd.read_sql(query_unique, conn)
+        df_kpis = pd.read_sql(query_kpis, conn)
         
         credits_total = float(df_kpis.iloc[0]['credits_total']) if not df_kpis.empty else 0
         credits_count = int(df_kpis.iloc[0]['credits_count']) if not df_kpis.empty else 0
@@ -283,15 +305,20 @@ def dashboard_data():
         encours_total = float(df_kpis.iloc[0]['encours_total']) if not df_kpis.empty else 0
         taux_recouvrement = round(float(df_kpis.iloc[0]['taux_recouvrement']), 1) if not df_kpis.empty else 0
         
-        # Comptes ouverts (requête ultra-rapide)
-        query_comptes = "SELECT COUNT(*) as nb FROM COMPTES WHERE ETAT = 'O'"
+        # Comptes ouverts (requête rapide)
+        query_comptes = "SELECT COUNT(*) as nb FROM dbo.COMPTES WHERE ETAT = 'O'"
         df_comptes = pd.read_sql(query_comptes, conn)
         comptes_ouverts = int(df_comptes.iloc[0]['nb']) if not df_comptes.empty else 0
         
-        # Parts sociales (valeur par défaut pour gagner du temps)
-        parts_sociales = 125000000  # Valeur par défaut rapide
+        # Parts sociales
+        try:
+            query_parts = "SELECT ISNULL(SUM(ops.NOMBRE * psv.VALEUR), 0) as total FROM dbo.OPERATIONS_PART_SOC ops LEFT JOIN dbo.PARTS_SOCIALE psv ON ops.ID_PART_SOCIALE = psv.ID"
+            df_parts = pd.read_sql(query_parts, conn)
+            parts_sociales = float(df_parts.iloc[0]['total']) if not df_parts.empty else 125000000
+        except:
+            parts_sociales = 125000000
         
-        # Évolution (LIMITÉ à 12 mois)
+        # Évolution mensuelle (LIMITÉE à 12 mois)
         query_evolution = """
         SELECT TOP 12
             FORMAT(date_effet, 'MMM yyyy') as mois,
@@ -304,7 +331,7 @@ def dashboard_data():
         df_evolution = pd.read_sql(query_evolution, conn)
         evolution_data = [{'mois': str(row['mois']), 'montant': float(row['montant'])} for _, row in df_evolution.iterrows()]
         
-        # Répartition (LIMITÉ à 5)
+        # Répartition par produit (LIMITÉE à 5)
         query_repartition = """
         SELECT TOP 5
             CASE WHEN produit IS NULL OR produit = '' THEN 'Non classé' ELSE produit END as produit,
@@ -317,9 +344,9 @@ def dashboard_data():
         df_repartition = pd.read_sql(query_repartition, conn)
         repartition_data = [{'produit': str(row['produit']), 'montant': float(row['montant'])} for _, row in df_repartition.iterrows()]
         
-        # Dernières activités (LIMITÉ à 8 pour accélérer)
+        # Dernières activités (LIMITÉES à 10)
         query_activites = """
-        SELECT TOP 8
+        SELECT TOP 10
             'Décaissement' as type,
             ISNULL(nom_client, '') + ' ' + ISNULL(prenoms_client, '') as client,
             mtt_pret as montant,
@@ -338,14 +365,11 @@ def dashboard_data():
             montant_val = float(row['montant']) if row['montant'] and not pd.isna(row['montant']) else None
             activites.append({
                 'type': str(row['type']),
-                'client': str(row['client'][:40]) if row['client'] else 'Client',
+                'client': str(row['client'][:50]) if row['client'] else 'Client',
                 'montant': float(montant_val) if montant_val else None,
                 'date': date_str,
-                'agence': str(row['agence'])[:30] if not pd.isna(row['agence']) else ''
+                'agence': str(row['agence']) if not pd.isna(row['agence']) else ''
             })
-        
-        elapsed = time.time() - start_time
-        logger.info(f"Dashboard chargé en {elapsed:.2f} secondes")
         
         result_data = {
             "credits_debloques": float(credits_total),
@@ -361,13 +385,13 @@ def dashboard_data():
             "parts_sociales": float(parts_sociales),
             "evolution": evolution_data,
             "repartition": repartition_data,
-            "activites": activites,
-            "load_time": round(elapsed, 2)
+            "activites": activites
         }
         
+        # Mettre en cache
         set_cached_dashboard(result_data)
         
-        return jsonify({"success": True, "data": result_data, "cached": False, "load_time": elapsed})
+        return jsonify({"success": True, "data": result_data, "cached": False})
         
     except Exception as e:
         import traceback
@@ -379,7 +403,7 @@ def dashboard_data():
 
 
 # ============================================================================
-# CRÉDITS DÉBLOQUÉS (version rapide)
+# CRÉDITS DÉBLOQUÉS
 # ============================================================================
 
 @app.route("/api/credits-debloques", methods=["GET"])
@@ -1167,14 +1191,13 @@ def email_status():
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("DÉMARRAGE DE VISIONEXTRACT - VERSION ULTRA RAPIDE")
+    print("DÉMARRAGE DE VISIONEXTRACT - VERSION OPTIMISÉE")
     print("=" * 60)
     print("\nInterface disponible sur:")
     print("   - http://127.0.0.1:5000")
     print("\nIdentifiants: ADMIN / Admin@2025!")
-    print("\n✅ Cache activé (3 minutes)")
-    print("✅ Requête SQL unique")
-    print("✅ Timeout réduit à 15 secondes")
+    print("\n✅ Cache activé (5 minutes)")
+    print("✅ Requêtes SQL optimisées")
     print("=" * 60)
     
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -62758,3 +62758,12 @@ MemoryError
 2026-05-08 13:19:13,521 - werkzeug - INFO - 127.0.0.1 - - [08/May/2026 13:19:13] "[36mGET /images/apple-icon-180x180.png?v=3 HTTP/1.1[0m" 304 -
 2026-05-08 13:19:44,980 - remuci_app - INFO - SUCCESS get_dashboard_data - Duration: 31.63s
 2026-05-08 13:19:44,982 - werkzeug - INFO - 127.0.0.1 - - [08/May/2026 13:19:44] "GET /api/dashboard-data HTTP/1.1" 200 -
+2026-05-15 10:45:55,439 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.225.96.104:5000
+2026-05-15 10:45:55,440 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-05-15 10:46:13,588 - werkzeug - INFO - 127.0.0.1 - - [15/May/2026 10:46:13] "[31m[1mGET / HTTP/1.1[0m" 401 -
+2026-05-15 10:46:13,707 - werkzeug - INFO - 127.0.0.1 - - [15/May/2026 10:46:13] "[31m[1mGET /favicon.ico HTTP/1.1[0m" 401 -
+2026-05-15 10:48:34,656 - werkzeug - INFO - 127.0.0.1 - - [15/May/2026 10:48:34] "[31m[1mGET / HTTP/1.1[0m" 401 -
+2026-05-15 10:48:34,759 - werkzeug - INFO - 127.0.0.1 - - [15/May/2026 10:48:34] "[31m[1mGET /favicon.ico HTTP/1.1[0m" 401 -

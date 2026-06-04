@@ -32,7 +32,7 @@ EMAIL_CONFIG = {
 
 # Destinataires - À MODIFIER AVEC LES VRAIS EMAILS
 RECIPIENTS = {
-    'finance': ['finance@remu-ci.com', 'daf@remu-ci.com'],
+    'finance': ['marius.yapi@remu-ci.com', 'sollomarius@gmail.com'],
     'exploitation': ['exploitation@remu-ci.com', 'directeur@remu-ci.com'],
     'credit': ['credit@remu-ci.com', 'responsable_credit@remu-ci.com'],
     'audit': ['audit@remu-ci.com', 'interne@remu-ci.com'],

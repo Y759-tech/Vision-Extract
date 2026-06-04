@@ -1038,43 +1038,97 @@ def global_search():
 
 
 # ============================================================================
-# PLANIFICATION
+# PLANIFICATION - VERSION COMPLÈTE
 # ============================================================================
-
-plannings = []
-planning_counter = 1
 
 @app.route("/api/planning/list", methods=["GET"])
 def get_plannings():
-    return jsonify({"success": True, "data": plannings})
+    conn = get_connection()
+    if not conn:
+        return jsonify({"success": False, "error": "Connexion impossible"}), 500
+    
+    try:
+        query = "SELECT * FROM dbo.PLANIFICATIONS ORDER BY DATE_HEURE"
+        df = pd.read_sql(query, conn)
+        data = dataframe_to_json(df)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
 
 @app.route("/api/planning/create", methods=["POST"])
 def create_planning():
-    global planning_counter
-    data = request.json
-    planning = {
-        "id": planning_counter,
-        "type": data.get('type'),
-        "frequence": data.get('frequence'),
-        "destinataires": data.get('destinataires'),
-        "status": "actif",
-        "created_at": datetime.now().isoformat()
-    }
-    plannings.append(planning)
-    planning_counter += 1
-    return jsonify({"success": True, "data": planning})
+    conn = get_connection()
+    if not conn:
+        return jsonify({"success": False, "error": "Connexion impossible"}), 500
+    
+    try:
+        data = request.json
+        type_extrait = data.get('type')
+        frequence = data.get('frequence')
+        destinataires = data.get('destinataires')
+        date_heure = data.get('date_heure')
+        
+        query = """
+        INSERT INTO dbo.PLANIFICATIONS (TYPE_EXTRAIT, FREQUENCE, DESTINATAIRES, DATE_HEURE, ACTIF)
+        VALUES (?, ?, ?, ?, 1)
+        """
+        cursor = conn.cursor()
+        cursor.execute(query, (type_extrait, frequence, destinataires, date_heure))
+        conn.commit()
+        
+        return jsonify({"success": True, "message": "Planification créée"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
 
 @app.route("/api/planning/delete/<int:plan_id>", methods=["DELETE"])
 def delete_planning(plan_id):
-    global plannings
-    plannings = [p for p in plannings if p['id'] != plan_id]
-    return jsonify({"success": True})
+    conn = get_connection()
+    if not conn:
+        return jsonify({"success": False, "error": "Connexion impossible"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM dbo.PLANIFICATIONS WHERE ID = ?", (plan_id,))
+        conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
 
-@app.route("/api/planning/test/<int:plan_id>", methods=["POST"])
-def test_planning(plan_id):
-    return jsonify({"success": True, "message": "Test envoyé"})
 
-
+@app.route("/api/planning/update/<int:plan_id>", methods=["PUT"])
+def update_planning(plan_id):
+    conn = get_connection()
+    if not conn:
+        return jsonify({"success": False, "error": "Connexion impossible"}), 500
+    
+    try:
+        data = request.json
+        query = """
+        UPDATE dbo.PLANIFICATIONS 
+        SET TYPE_EXTRAIT = ?, FREQUENCE = ?, DESTINATAIRES = ?, DATE_HEURE = ?, ACTIF = ?
+        WHERE ID = ?
+        """
+        cursor = conn.cursor()
+        cursor.execute(query, (data.get('type'), data.get('frequence'), data.get('destinataires'), data.get('date_heure'), data.get('actif'), plan_id))
+        conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+            
 # ============================================================================
 # EXPORT EXCEL
 # ============================================================================

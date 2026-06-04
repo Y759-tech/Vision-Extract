@@ -1,10 +1,10 @@
-<!-- remuci.html - Version améliorée -->
+<!-- remuci.html - Version corrigée avec planification fonctionnelle -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>REMU-CI VisionExtract - Solution Décisionnelle</title>
+    <title>VisionExtract - Solution Décisionnelle</title>
     
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json">
@@ -27,7 +27,6 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     
     <style>
-        /* Votre CSS existant - je le garde mais j'ajoute des améliorations */
         * {
             margin: 0;
             padding: 0;
@@ -46,13 +45,11 @@
             color: #e2e8f0;
         }
 
-        /* Layout principal */
         .app {
             display: flex;
             min-height: 100vh;
         }
 
-        /* Sidebar améliorée */
         .sidebar {
             width: 280px;
             background: white;
@@ -145,7 +142,6 @@
             color: #90be6d;
         }
 
-        /* Main content */
         .main {
             flex: 1;
             margin-left: 280px;
@@ -153,7 +149,6 @@
             min-height: 100vh;
         }
 
-        /* Header */
         .header {
             display: flex;
             justify-content: space-between;
@@ -243,7 +238,6 @@
             transform: scale(1.05);
         }
 
-        /* KPI Cards améliorées */
         .kpi-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -323,7 +317,6 @@
         .trend-up { color: #10b981; }
         .trend-down { color: #ef4444; }
 
-        /* Charts row */
         .charts-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -371,7 +364,6 @@
             width: 100%;
         }
 
-        /* Filtres panel amélioré */
         .filters-panel {
             background: white;
             border-radius: 20px;
@@ -432,7 +424,6 @@
             box-shadow: 0 0 0 3px rgba(26, 71, 42, 0.1);
         }
 
-        /* Buttons */
         .btn {
             padding: 10px 20px;
             border: none;
@@ -483,7 +474,6 @@
             margin-top: 16px;
         }
 
-        /* Table container */
         .table-container {
             background: white;
             border-radius: 20px;
@@ -558,7 +548,6 @@
             background: #334155;
         }
 
-        /* Badges */
         .badge {
             padding: 4px 12px;
             border-radius: 20px;
@@ -577,7 +566,6 @@
         body.dark-mode .badge-danger { background: #991b1b; color: #fee2e2; }
         body.dark-mode .badge-info { background: #1e40af; color: #dbeafe; }
 
-        /* Pagination */
         .pagination {
             display: flex;
             align-items: center;
@@ -627,7 +615,6 @@
             cursor: not-allowed;
         }
 
-        /* Planning (Planification) */
         .planning-panel {
             background: white;
             border-radius: 20px;
@@ -643,7 +630,7 @@
 
         .planning-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 20px;
         }
 
@@ -652,10 +639,12 @@
             border-radius: 16px;
             padding: 20px;
             transition: all 0.2s;
+            border: 1px solid #e2e8f0;
         }
 
         body.dark-mode .planning-card {
             background: #0f172a;
+            border-color: #334155;
         }
 
         .planning-card:hover {
@@ -663,7 +652,6 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
-        /* Stats mini */
         .stats-mini-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -682,7 +670,6 @@
             background: #0f172a;
         }
 
-        /* Login screen */
         .login-container {
             min-height: 100vh;
             display: flex;
@@ -717,7 +704,6 @@
             color: transparent;
         }
 
-        /* Customization panel */
         .settings-float {
             position: fixed;
             bottom: 30px;
@@ -778,7 +764,6 @@
             display: block;
         }
 
-        /* Loading */
         .loading-spinner {
             display: inline-block;
             width: 40px;
@@ -802,7 +787,6 @@
             gap: 16px;
         }
 
-        /* Notifications */
         .notification {
             position: fixed;
             top: 20px;
@@ -833,7 +817,6 @@
         .notification-warning { border-left: 4px solid #f59e0b; }
         .notification-info { border-left: 4px solid #3b82f6; }
 
-        /* Responsive */
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -857,6 +840,9 @@
                 grid-template-columns: repeat(2, 1fr);
             }
             .filters-grid {
+                grid-template-columns: 1fr;
+            }
+            .planning-grid {
                 grid-template-columns: 1fr;
             }
             .customization-panel {
@@ -888,7 +874,6 @@
             }
         }
 
-        /* Print */
         @media print {
             .sidebar, .header, .settings-float, .action-buttons, .pagination, .mobile-menu-toggle {
                 display: none !important;
@@ -1078,7 +1063,6 @@
         let charts = {};
         let currentView = 'dashboard';
         
-        // Fonction utilitaire pour formater les nombres
         function formatNumber(num) {
             if (num === null || num === undefined) return '0';
             return new Intl.NumberFormat('fr-FR').format(num);
@@ -1111,7 +1095,6 @@
             return date.toISOString().split('T')[0];
         }
         
-        // Notification
         function showNotification(message, type = 'info') {
             const notif = document.createElement('div');
             notif.className = `notification notification-${type}`;
@@ -1236,14 +1219,12 @@
                 localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
             });
             
-            // Charger thème sauvegardé
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'dark') {
                 document.body.classList.add('dark-mode');
                 document.querySelector('#themeToggle i').className = 'fas fa-sun';
             }
             
-            // Personnalisation
             const settingsFloat = document.getElementById('settingsFloat');
             const panel = document.getElementById('customizationPanel');
             const closePanel = document.getElementById('closePanel');
@@ -1277,7 +1258,6 @@
                 location.reload();
             });
             
-            // Recherche globale
             document.getElementById('globalSearch').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     const query = this.value.trim();
@@ -1577,7 +1557,6 @@
         
         async function loadView(view) {
             const content = document.getElementById('dynamic-content');
-            const endpoint = getEndpoint(view);
             
             content.innerHTML = `
                 <div class="filters-panel">
@@ -1769,18 +1748,157 @@
         }
         
         // ============ PLANIFICATION ============
+        
         function showPlanning() {
             const content = document.getElementById('dynamic-content');
             content.innerHTML = `
                 <div class="planning-panel">
                     <div class="table-header">
-                        <div class="table-title"><i class="fas fa-clock"></i> Extractions planifiées</div>
-                        <button class="btn btn-primary" onclick="showAddPlanningModal()"><i class="fas fa-plus"></i> Nouvelle planification</button>
+                        <div class="table-title">
+                            <i class="fas fa-clock"></i> Extractions planifiées
+                        </div>
+                        <button class="btn btn-primary" onclick="showAddPlanningModal()">
+                            <i class="fas fa-plus"></i> Nouvelle planification
+                        </button>
                     </div>
-                    <div id="planning-list" class="loading-container"><div class="loading-spinner"></div></div>
+                    <div id="planning-list" class="loading-container">
+                        <div class="loading-spinner"></div>
+                    </div>
                 </div>
             `;
             loadPlanningList();
+        }
+        
+        function showAddPlanningModal(plan = null) {
+            const isEdit = plan !== null;
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 1000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+            
+            const defaultDateTime = new Date().toISOString().slice(0, 16);
+            
+            modal.innerHTML = `
+                <div class="modal-content" style="background: white; border-radius: 20px; max-width: 550px; width: 90%; padding: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3><i class="fas fa-calendar-plus"></i> ${isEdit ? 'Modifier' : 'Nouvelle'} extraction planifiée</h3>
+                        <button onclick="this.closest('.modal-overlay').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                    </div>
+                    
+                    <div class="filter-group" style="margin-bottom: 16px;">
+                        <label><i class="fas fa-chart-line"></i> Type d'extraction</label>
+                        <select id="plan_type" style="width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ddd;">
+                            <option value="credits" ${isEdit && plan.TYPE_EXTRAIT === 'credits' ? 'selected' : ''}>📊 Crédits débloqués</option>
+                            <option value="unpaid" ${isEdit && plan.TYPE_EXTRAIT === 'unpaid' ? 'selected' : ''}>⚠️ Crédits impayés</option>
+                            <option value="clients" ${isEdit && plan.TYPE_EXTRAIT === 'clients' ? 'selected' : ''}>👥 Nouveaux clients</option>
+                            <option value="comptes" ${isEdit && plan.TYPE_EXTRAIT === 'comptes' ? 'selected' : ''}>🏦 Comptes ouverts</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group" style="margin-bottom: 16px;">
+                        <label><i class="fas fa-repeat"></i> Fréquence</label>
+                        <select id="plan_frequence" style="width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ddd;">
+                            <option value="daily" ${isEdit && plan.FREQUENCE === 'daily' ? 'selected' : ''}>📅 Quotidienne</option>
+                            <option value="weekly" ${isEdit && plan.FREQUENCE === 'weekly' ? 'selected' : ''}>📆 Hebdomadaire</option>
+                            <option value="monthly" ${isEdit && plan.FREQUENCE === 'monthly' ? 'selected' : ''}>📅 Mensuelle</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group" style="margin-bottom: 16px;">
+                        <label><i class="fas fa-calendar-alt"></i> Date et heure d'envoi</label>
+                        <input type="datetime-local" id="plan_datetime" style="width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ddd;" 
+                               value="${isEdit ? (plan.DATE_HEURE ? plan.DATE_HEURE.slice(0, 16) : defaultDateTime) : defaultDateTime}">
+                    </div>
+                    
+                    <div class="filter-group" style="margin-bottom: 16px;">
+                        <label><i class="fas fa-envelope"></i> Destinataires (emails séparés par des virgules)</label>
+                        <input type="text" id="plan_emails" placeholder="email1@domaine.com, email2@domaine.com" 
+                               value="${isEdit ? (plan.DESTINATAIRES || '') : ''}" style="width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ddd;">
+                    </div>
+                    
+                    ${isEdit ? `
+                    <div class="filter-group" style="margin-bottom: 16px;">
+                        <label><i class="fas fa-power-off"></i> Statut</label>
+                        <select id="plan_actif" style="width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #ddd;">
+                            <option value="1" ${plan.ACTIF == 1 ? 'selected' : ''}>✅ Actif</option>
+                            <option value="0" ${plan.ACTIF == 0 ? 'selected' : ''}>⛔ Inactif</option>
+                        </select>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="action-buttons" style="margin-top: 20px;">
+                        <button class="btn btn-primary" onclick="savePlanning(${isEdit ? plan.ID : 'null'})">
+                            <i class="fas fa-save"></i> ${isEdit ? 'Mettre à jour' : 'Enregistrer'}
+                        </button>
+                        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">
+                            <i class="fas fa-times"></i> Annuler
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+        
+        async function savePlanning(planId = null) {
+            const type = document.getElementById('plan_type').value;
+            const frequence = document.getElementById('plan_frequence').value;
+            const date_heure = document.getElementById('plan_datetime').value;
+            const emails = document.getElementById('plan_emails').value;
+            
+            if (!emails) {
+                showNotification('Veuillez entrer au moins un destinataire', 'warning');
+                return;
+            }
+            
+            if (!date_heure) {
+                showNotification('Veuillez choisir une date et heure', 'warning');
+                return;
+            }
+            
+            const url = planId ? `/api/planning/update/${planId}` : '/api/planning/create';
+            const method = planId ? 'PUT' : 'POST';
+            
+            const data = {
+                type: type,
+                frequence: frequence,
+                destinataires: emails,
+                date_heure: date_heure
+            };
+            
+            if (planId) {
+                data.actif = document.getElementById('plan_actif').value;
+            }
+            
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                    credentials: 'include'
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(planId ? 'Planification modifiée' : 'Planification créée', 'success');
+                    document.querySelector('.modal-overlay')?.remove();
+                    loadPlanningList();
+                } else {
+                    showNotification('Erreur: ' + (result.error || 'Inconnue'), 'error');
+                }
+            } catch (error) {
+                showNotification('Erreur de connexion', 'error');
+            }
         }
         
         async function loadPlanningList() {
@@ -1788,112 +1906,107 @@
                 const response = await fetch('/api/planning/list', { credentials: 'include' });
                 const result = await response.json();
                 const container = document.getElementById('planning-list');
-                if (result.success && result.data.length > 0) {
+                
+                if (result.success && result.data && result.data.length > 0) {
                     container.innerHTML = `
                         <div class="planning-grid">
                             ${result.data.map(p => `
-                                <div class="planning-card">
+                                <div class="planning-card" style="background: ${p.ACTIF == 1 ? '#fff' : '#f5f5f5'};">
                                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
-                                        <h4><i class="fas fa-file-alt"></i> ${p.type}</h4>
-                                        <span class="badge ${p.status === 'actif' ? 'badge-success' : 'badge-secondary'}">${p.status}</span>
+                                        <h4><i class="fas fa-file-alt"></i> ${getTypeLabel(p.TYPE_EXTRAIT)}</h4>
+                                        <span class="badge ${p.STATUT === 'ENVOYÉ' ? 'badge-success' : p.ACTIF == 1 ? 'badge-info' : 'badge-secondary'}">
+                                            ${p.STATUT || (p.ACTIF == 1 ? 'ACTIF' : 'INACTIF')}
+                                        </span>
                                     </div>
-                                    <div style="margin-bottom: 8px;"><i class="fas fa-calendar"></i> Fréquence: ${p.frequence}</div>
-                                    <div style="margin-bottom: 12px;"><i class="fas fa-envelope"></i> Destinataires: ${p.destinataires}</div>
-                                    <div style="display: flex; gap: 8px;">
-                                        <button class="btn btn-secondary" onclick="testPlanning(${p.id})"><i class="fas fa-play"></i> Tester</button>
-                                        <button class="btn btn-secondary" onclick="editPlanning(${p.id})"><i class="fas fa-edit"></i></button>
-                                        <button class="btn btn-secondary" onclick="deletePlanning(${p.id})"><i class="fas fa-trash"></i></button>
+                                    <div style="margin-bottom: 8px;">
+                                        <i class="fas fa-calendar"></i> <strong>${p.FREQUENCE === 'daily' ? 'Quotidienne' : p.FREQUENCE === 'weekly' ? 'Hebdomadaire' : 'Mensuelle'}</strong>
+                                    </div>
+                                    <div style="margin-bottom: 8px;">
+                                        <i class="fas fa-clock"></i> Prochain envoi: ${new Date(p.DATE_HEURE).toLocaleString('fr-FR')}
+                                    </div>
+                                    <div style="margin-bottom: 12px; font-size: 12px; word-break: break-all;">
+                                        <i class="fas fa-envelope"></i> ${p.DESTINATAIRES}
+                                    </div>
+                                    ${p.DERNIER_ENVOI ? `<div style="margin-bottom: 12px; font-size: 12px; color: #666;">
+                                        <i class="fas fa-history"></i> Dernier envoi: ${new Date(p.DERNIER_ENVOI).toLocaleString('fr-FR')}
+                                    </div>` : ''}
+                                    <div style="display: flex; gap: 8px; margin-top: 12px;">
+                                        <button class="btn btn-secondary" onclick="editPlanning(${p.ID})" style="padding: 6px 12px;">
+                                            <i class="fas fa-edit"></i> Modifier
+                                        </button>
+                                        <button class="btn btn-secondary" onclick="deletePlanning(${p.ID})" style="padding: 6px 12px; background: #fee2e2; color: #dc2626;">
+                                            <i class="fas fa-trash"></i> Supprimer
+                                        </button>
                                     </div>
                                 </div>
                             `).join('')}
                         </div>
                     `;
                 } else {
-                    container.innerHTML = `<div style="text-align: center; padding: 40px;"><i class="fas fa-clock" style="font-size: 3rem;"></i><p>Aucune planification</p><button class="btn btn-primary" onclick="showAddPlanningModal()">Créer une planification</button></div>`;
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 60px;">
+                            <i class="fas fa-calendar-alt" style="font-size: 4rem; color: #94a3b8;"></i>
+                            <p style="margin-top: 16px;">Aucune planification</p>
+                            <button class="btn btn-primary" onclick="showAddPlanningModal()" style="margin-top: 16px;">
+                                <i class="fas fa-plus"></i> Créer une planification
+                            </button>
+                        </div>
+                    `;
                 }
             } catch (error) {
-                showNotification('Erreur chargement planifications', 'error');
+                console.error('Erreur chargement planifications:', error);
+                const container = document.getElementById('planning-list');
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ef4444;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem;"></i>
+                        <p>Erreur de chargement: ${error.message}</p>
+                        <button class="btn btn-primary" onclick="loadPlanningList()">Réessayer</button>
+                    </div>
+                `;
             }
         }
         
-        function showAddPlanningModal() {
-            const modal = document.createElement('div');
-            modal.className = 'modal-overlay';
-            modal.innerHTML = `
-                <div class="modal-content" style="background: white; border-radius: 20px; max-width: 500px; margin: 50px auto; padding: 24px;">
-                    <h3>Nouvelle extraction planifiée</h3>
-                    <div class="filter-group" style="margin: 16px 0;">
-                        <label>Type d'extraction</label>
-                        <select id="plan_type"><option value="credits">Crédits débloqués</option><option value="clients">Nouveaux clients</option><option value="unpaid">Crédits impayés</option><option value="balance">Balance J-1</option></select>
-                    </div>
-                    <div class="filter-group" style="margin: 16px 0;">
-                        <label>Fréquence</label>
-                        <select id="plan_frequence"><option value="daily">Quotidienne</option><option value="weekly">Hebdomadaire</option><option value="monthly">Mensuelle</option></select>
-                    </div>
-                    <div class="filter-group" style="margin: 16px 0;">
-                        <label>Destinataires (emails séparés par des virgules)</label>
-                        <input type="text" id="plan_emails" placeholder="email1@domaine.com, email2@domaine.com">
-                    </div>
-                    <div class="action-buttons">
-                        <button class="btn btn-primary" onclick="savePlanning()">Enregistrer</button>
-                        <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Annuler</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
+        function getTypeLabel(type) {
+            const types = {
+                'credits': '📊 Crédits débloqués',
+                'unpaid': '⚠️ Crédits impayés',
+                'clients': '👥 Nouveaux clients',
+                'comptes': '🏦 Comptes ouverts'
+            };
+            return types[type] || type;
         }
         
-        async function savePlanning() {
-            const type = document.getElementById('plan_type').value;
-            const frequence = document.getElementById('plan_frequence').value;
-            const emails = document.getElementById('plan_emails').value;
-            
+        async function editPlanning(id) {
             try {
-                const response = await fetch('/api/planning/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type, frequence, destinataires: emails }),
-                    credentials: 'include'
-                });
+                const response = await fetch('/api/planning/list', { credentials: 'include' });
                 const result = await response.json();
-                if (result.success) {
-                    showNotification('Planification créée', 'success');
-                    document.querySelector('.modal-overlay')?.remove();
-                    loadPlanningList();
-                } else {
-                    showNotification('Erreur création', 'error');
+                const plan = result.data.find(p => p.ID == id);
+                if (plan) {
+                    showAddPlanningModal(plan);
                 }
             } catch (error) {
-                showNotification('Erreur', 'error');
+                showNotification('Erreur: ' + error.message, 'error');
             }
         }
         
         async function deletePlanning(id) {
             if (!confirm('Supprimer cette planification ?')) return;
+            
             try {
-                const response = await fetch(`/api/planning/delete/${id}`, { method: 'DELETE', credentials: 'include' });
+                const response = await fetch(`/api/planning/delete/${id}`, { 
+                    method: 'DELETE', 
+                    credentials: 'include' 
+                });
                 const result = await response.json();
+                
                 if (result.success) {
                     showNotification('Planification supprimée', 'success');
                     loadPlanningList();
-                }
-            } catch (error) {
-                showNotification('Erreur suppression', 'error');
-            }
-        }
-        
-        async function testPlanning(id) {
-            showNotification('Test en cours...', 'info');
-            try {
-                const response = await fetch(`/api/planning/test/${id}`, { method: 'POST', credentials: 'include' });
-                const result = await response.json();
-                if (result.success) {
-                    showNotification('Test envoyé avec succès', 'success');
                 } else {
-                    showNotification('Erreur lors du test', 'error');
+                    showNotification('Erreur suppression', 'error');
                 }
             } catch (error) {
-                showNotification('Erreur', 'error');
+                showNotification('Erreur: ' + error.message, 'error');
             }
         }
         

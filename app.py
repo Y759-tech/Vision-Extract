@@ -11,7 +11,7 @@ import json
 import re
 import numpy as np
 from datetime import datetime, timedelta
-from flask import Flask, jsonify, request, send_file, session, send_from_directory
+from flask import Flask, jsonify, request, send_file, session, send_from_directory, redirect
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -68,7 +68,7 @@ dashboard_cache = {
 def get_cached_dashboard():
     if dashboard_cache['timestamp'] is not None:
         age = (datetime.now() - dashboard_cache['timestamp']).total_seconds()
-        if age < 180:  # 3 minutes de cache (réduit)
+        if age < 180:
             return dashboard_cache['data']
     return None
 
@@ -103,6 +103,14 @@ def dataframe_to_json(df):
         for key, value in record.items():
             record[key] = convert_to_serializable(value)
     return records
+
+# ============================================================================
+# SYSTÈME DE LICENCE (défini avant before_request)
+# ============================================================================
+
+from license_manager import LicenseManager
+
+license_manager = LicenseManager()
 
 # ============================================================================
 # AUTHENTIFICATION
@@ -159,13 +167,76 @@ def serve_manifest():
 def serve_sw():
     return send_file('sw.js', mimetype='application/javascript')
 
+# ============================================================================
+# ROUTES DE LICENCE (avant le before_request)
+# ============================================================================
+
+@app.route('/license')
+def license_page():
+    """Page de saisie de licence"""
+    return send_file('license.html')
+
+@app.route('/api/license/machine-id', methods=['GET'])
+def get_machine_id():
+    """Retourne l'ID unique de la machine"""
+    return jsonify({
+        "success": True,
+        "machine_id": license_manager.get_machine_id()
+    })
+
+@app.route('/api/license/activate', methods=['POST'])
+def activate_license():
+    """Active la licence"""
+    data = request.json
+    license_key = data.get('license_key', '').strip().upper()
+    
+    if not license_key:
+        return jsonify({"success": False, "message": "Code de licence requis"}), 400
+    
+    success, message = license_manager.activate_license(license_key)
+    
+    if success:
+        return jsonify({"success": True, "message": message})
+    else:
+        return jsonify({"success": False, "message": message}), 401
+
+@app.route('/api/license/status', methods=['GET'])
+def license_status():
+    """Vérifie le statut de la licence"""
+    is_valid = license_manager.is_licensed()
+    info = license_manager.get_license_info()
+    
+    return jsonify({
+        "success": True,
+        "licensed": is_valid,
+        "info": info
+    })
+
+# ============================================================================
+# BEFORE REQUEST - VÉRIFICATION LICENCE ET AUTHENTIFICATION
+# ============================================================================
+
 @app.before_request
 def require_login():
-    public_routes = ['/', '/login', '/logout', '/manifest.json', '/sw.js', '/api/check-session', '/api/health', '/api/clear-cache']
-    if request.path in public_routes:
+    # Routes publiques (licence) - TOUJOURS ACCESSIBLES
+    licence_routes = ['/license', '/api/license/machine-id', '/api/license/activate', '/api/license/status']
+    if request.path in licence_routes:
         return None
-    if request.path.startswith('/static/'):
+    
+    # Fichiers statiques
+    if request.path.startswith('/static/') or request.path.startswith('/images/'):
         return None
+    
+    # VÉRIFICATION DE LA LICENCE (SAUF POUR LES ROUTES DE LICENCE)
+    if not license_manager.is_licensed():
+        return redirect('/license')
+    
+    # Routes d'authentification (sans login)
+    auth_routes = ['/', '/login', '/logout', '/api/check-session', '/api/health', '/api/clear-cache', '/manifest.json', '/sw.js']
+    if request.path in auth_routes:
+        return None
+    
+    # VÉRIFICATION DE L'AUTHENTIFICATION
     if not session.get('logged_in'):
         return jsonify({'success': False, 'error': 'Authentification requise'}), 401
 
@@ -180,7 +251,7 @@ def get_connection():
             "Server=localhost\\SQLEXPRESS;"
             "Database=REMUCI_VISION;"
             "Trusted_Connection=yes;"
-            "Timeout=15;",  # Timeout réduit à 15 secondes
+            "Timeout=15;",
             autocommit=True
         )
         return conn
@@ -223,7 +294,7 @@ def get_gestionnaires():
     try:
         query = """
         SELECT DISTINCT gestionnaire_pret AS nom
-        FROM dbo.extra_credits_view
+        FROM dbo.extra_credits_materialized
         WHERE gestionnaire_pret IS NOT NULL AND gestionnaire_pret != ''
         ORDER BY gestionnaire_pret;
         """
@@ -238,7 +309,6 @@ def get_gestionnaires():
 
 @app.route("/api/dashboard-data", methods=["GET"])
 def dashboard_data():
-    # Vérifier le cache (3 minutes)
     cached_data = get_cached_dashboard()
     if cached_data is not None:
         return jsonify({"success": True, "data": cached_data, "cached": True})
@@ -248,13 +318,11 @@ def dashboard_data():
         return jsonify({"success": False, "error": "Connexion impossible"}), 500
     
     try:
-        # ULTRA-OPTIMISATION : UNE SEULE REQUÊTE POUR PRESQUE TOUT
         start_time = time.time()
         
         query_unique = """
         WITH KPIS AS (
             SELECT 
-                -- KPIs principaux
                 ISNULL(SUM(CASE WHEN date_effet >= DATEADD(day, -30, GETDATE()) THEN mtt_pret ELSE 0 END), 0) as credits_total,
                 COUNT(CASE WHEN date_effet >= DATEADD(day, -30, GETDATE()) THEN 1 END) as credits_count,
                 COUNT(DISTINCT CASE WHEN date_adhesion >= DATEADD(day, -30, GETDATE()) THEN code_client END) as nouveaux_clients,
@@ -265,7 +333,7 @@ def dashboard_data():
                 CASE WHEN SUM(mtt_pret) > 0 
                 THEN (SUM(CASE WHEN date_solde IS NOT NULL AND date_solde <= GETDATE() THEN mtt_pret ELSE 0 END) * 100.0 / SUM(mtt_pret))
                 ELSE 0 END as taux_recouvrement
-            FROM dbo.extra_credits_view
+            FROM dbo.extra_credits_materialized
             WHERE date_effet IS NOT NULL
         )
         SELECT * FROM KPIS
@@ -283,20 +351,17 @@ def dashboard_data():
         encours_total = float(df_kpis.iloc[0]['encours_total']) if not df_kpis.empty else 0
         taux_recouvrement = round(float(df_kpis.iloc[0]['taux_recouvrement']), 1) if not df_kpis.empty else 0
         
-        # Comptes ouverts (requête ultra-rapide)
         query_comptes = "SELECT COUNT(*) as nb FROM COMPTES WHERE ETAT = 'O'"
         df_comptes = pd.read_sql(query_comptes, conn)
         comptes_ouverts = int(df_comptes.iloc[0]['nb']) if not df_comptes.empty else 0
         
-        # Parts sociales (valeur par défaut pour gagner du temps)
-        parts_sociales = 125000000  # Valeur par défaut rapide
+        parts_sociales = 125000000
         
-        # Évolution (LIMITÉ à 12 mois)
         query_evolution = """
         SELECT TOP 12
             FORMAT(date_effet, 'MMM yyyy') as mois,
             ISNULL(SUM(mtt_pret), 0) as montant
-        FROM dbo.extra_credits_view
+        FROM dbo.extra_credits_materialized
         WHERE date_effet >= DATEADD(month, -11, GETDATE()) AND date_effet IS NOT NULL
         GROUP BY FORMAT(date_effet, 'MMM yyyy'), YEAR(date_effet), MONTH(date_effet)
         ORDER BY YEAR(date_effet), MONTH(date_effet)
@@ -304,12 +369,11 @@ def dashboard_data():
         df_evolution = pd.read_sql(query_evolution, conn)
         evolution_data = [{'mois': str(row['mois']), 'montant': float(row['montant'])} for _, row in df_evolution.iterrows()]
         
-        # Répartition (LIMITÉ à 5)
         query_repartition = """
         SELECT TOP 5
             CASE WHEN produit IS NULL OR produit = '' THEN 'Non classé' ELSE produit END as produit,
             ISNULL(SUM(mtt_pret), 0) as montant
-        FROM dbo.extra_credits_view
+        FROM dbo.extra_credits_materialized
         WHERE date_effet IS NOT NULL
         GROUP BY produit
         ORDER BY montant DESC
@@ -317,7 +381,6 @@ def dashboard_data():
         df_repartition = pd.read_sql(query_repartition, conn)
         repartition_data = [{'produit': str(row['produit']), 'montant': float(row['montant'])} for _, row in df_repartition.iterrows()]
         
-        # Dernières activités (LIMITÉ à 8 pour accélérer)
         query_activites = """
         SELECT TOP 8
             'Décaissement' as type,
@@ -325,7 +388,7 @@ def dashboard_data():
             mtt_pret as montant,
             date_effet as date_action,
             ISNULL(nom_agence, '') as agence
-        FROM dbo.extra_credits_view
+        FROM dbo.extra_credits_materialized
         WHERE date_effet IS NOT NULL
         ORDER BY date_effet DESC
         """
@@ -379,7 +442,7 @@ def dashboard_data():
 
 
 # ============================================================================
-# CRÉDITS DÉBLOQUÉS (version rapide)
+# CRÉDITS DÉBLOQUÉS
 # ============================================================================
 
 @app.route("/api/credits-debloques", methods=["GET"])
@@ -409,7 +472,7 @@ def credits_debloques():
             ecv.gestionnaire_pret AS [Gestionnaire],
             ecv.produit AS [Produit],
             ecv.code_client AS [Code client]
-        FROM dbo.extra_credits_view ecv
+        FROM dbo.extra_credits_materialized ecv
         WHERE ecv.date_effet BETWEEN ? AND ?
           AND (? = '' OR ecv.nom_agence = ?)
           AND (? = '' OR ecv.gestionnaire_pret = ?)
@@ -419,7 +482,7 @@ def credits_debloques():
         
         count_query = """
         SELECT COUNT(*) as total
-        FROM dbo.extra_credits_view ecv
+        FROM dbo.extra_credits_materialized ecv
         WHERE ecv.date_effet BETWEEN ? AND ?
           AND (? = '' OR ecv.nom_agence = ?)
           AND (? = '' OR ecv.gestionnaire_pret = ?);
@@ -476,7 +539,7 @@ def nouveaux_clients():
             ecv.telephone AS [Téléphone],
             ecv.nom_agence AS [Agence],
             ecv.sexe AS [Sexe]
-        FROM dbo.extra_credits_view ecv
+        FROM dbo.extra_credits_materialized ecv
         WHERE ecv.date_adhesion BETWEEN ? AND ?
           AND (? = '' OR ecv.nom_agence = ?)
         ORDER BY ecv.date_adhesion DESC
@@ -485,7 +548,7 @@ def nouveaux_clients():
         
         count_query = """
         SELECT COUNT(DISTINCT code_client) as total
-        FROM dbo.extra_credits_view
+        FROM dbo.extra_credits_materialized
         WHERE date_adhesion BETWEEN ? AND ?
           AND (? = '' OR nom_agence = ?);
         """
@@ -605,7 +668,7 @@ def credits_impayes():
             ecv.gestionnaire_pret AS [Gestionnaire],
             ecv.produit AS [Produit],
             ecv.telephone AS [Téléphone]
-        FROM dbo.extra_credits_view ecv
+        FROM dbo.extra_credits_materialized ecv
         WHERE ecv.date_fin_echeance < GETDATE()
           AND (ecv.date_solde IS NULL OR ecv.date_solde > ecv.date_fin_echeance)
           AND (? = '' OR ecv.nom_agence = ?)
@@ -616,7 +679,7 @@ def credits_impayes():
         
         count_query = """
         SELECT COUNT(*) as total
-        FROM dbo.extra_credits_view ecv
+        FROM dbo.extra_credits_materialized ecv
         WHERE ecv.date_fin_echeance < GETDATE()
           AND (ecv.date_solde IS NULL OR ecv.date_solde > ecv.date_fin_echeance)
           AND (? = '' OR ecv.nom_agence = ?)
@@ -671,7 +734,7 @@ def echeances_futures():
             ecv.nom_agence AS [Agence],
             ecv.gestionnaire_pret AS [Gestionnaire],
             ecv.telephone AS [Téléphone]
-        FROM dbo.extra_credits_view ecv
+        FROM dbo.extra_credits_materialized ecv
         WHERE ecv.date_fin_echeance BETWEEN ? AND ?
           AND ecv.date_solde IS NULL
           AND (? = '' OR ecv.nom_agence = ?)
@@ -681,7 +744,7 @@ def echeances_futures():
         
         count_query = """
         SELECT COUNT(*) as total
-        FROM dbo.extra_credits_view ecv
+        FROM dbo.extra_credits_materialized ecv
         WHERE ecv.date_fin_echeance BETWEEN ? AND ?
           AND ecv.date_solde IS NULL
           AND (? = '' OR ecv.nom_agence = ?);
@@ -732,7 +795,7 @@ def remboursements():
             ecv.mtt_pret AS [Montant crédit],
             ecv.date_solde AS [Date remboursement],
             ecv.nom_agence AS [Agence]
-        FROM dbo.extra_credits_view ecv
+        FROM dbo.extra_credits_materialized ecv
         WHERE ecv.date_solde BETWEEN ? AND ?
           AND ecv.date_solde IS NOT NULL
           AND (? = '' OR ecv.nom_agence = ?)
@@ -742,7 +805,7 @@ def remboursements():
         
         count_query = """
         SELECT COUNT(*) as total
-        FROM dbo.extra_credits_view ecv
+        FROM dbo.extra_credits_materialized ecv
         WHERE ecv.date_solde BETWEEN ? AND ?
           AND ecv.date_solde IS NOT NULL
           AND (? = '' OR ecv.nom_agence = ?);
@@ -793,7 +856,7 @@ def clients_actifs():
             ecv.gestionnaire_pret AS [Gestionnaire],
             MAX(ecv.date_effet) AS [Dernier crédit],
             COUNT(ecv.id_pret) AS [Nb crédits]
-        FROM dbo.extra_credits_view ecv
+        FROM dbo.extra_credits_materialized ecv
         WHERE ecv.date_effet >= DATEADD(month, -3, GETDATE())
           AND (? = '' OR ecv.nom_agence = ?)
         GROUP BY ecv.code_client, ecv.nom_client, ecv.prenoms_client, ecv.telephone, ecv.nom_agence, ecv.gestionnaire_pret
@@ -803,7 +866,7 @@ def clients_actifs():
         
         count_query = """
         SELECT COUNT(DISTINCT code_client) as total
-        FROM dbo.extra_credits_view
+        FROM dbo.extra_credits_materialized
         WHERE date_effet >= DATEADD(month, -3, GETDATE())
           AND (? = '' OR nom_agence = ?);
         """
@@ -937,7 +1000,7 @@ def analyse_genre():
             COUNT(DISTINCT ecv.code_client) as clients,
             COUNT(ecv.id_pret) as credits,
             ISNULL(SUM(ecv.mtt_pret), 0) as montant
-        FROM dbo.extra_credits_view ecv
+        FROM dbo.extra_credits_materialized ecv
         WHERE YEAR(ecv.date_effet) = ? AND ecv.sexe = 'F'
         """
         
@@ -946,7 +1009,7 @@ def analyse_genre():
             COUNT(DISTINCT ecv.code_client) as clients,
             COUNT(ecv.id_pret) as credits,
             ISNULL(SUM(ecv.mtt_pret), 0) as montant
-        FROM dbo.extra_credits_view ecv
+        FROM dbo.extra_credits_materialized ecv
         WHERE YEAR(ecv.date_effet) = ? AND ecv.sexe = 'M'
         """
         
@@ -999,10 +1062,10 @@ def global_search():
         search_term = f"%{query}%"
         sql = """
         SELECT TOP 20 'Client' as type, code_client as code, nom_client + ' ' + ISNULL(prenoms_client, '') as nom, telephone as details
-        FROM extra_credits_view WHERE nom_client LIKE ? OR prenoms_client LIKE ? OR code_client LIKE ?
+        FROM extra_credits_materialized WHERE nom_client LIKE ? OR prenoms_client LIKE ? OR code_client LIKE ?
         UNION
         SELECT TOP 20 'Crédit' as type, num_manuel as code, nom_client + ' ' + ISNULL(prenoms_client, '') as nom, CAST(mtt_pret AS VARCHAR) as details
-        FROM extra_credits_view WHERE num_manuel LIKE ?
+        FROM extra_credits_materialized WHERE num_manuel LIKE ?
         """
         df = pd.read_sql(sql, conn, params=[search_term, search_term, search_term, search_term])
         return jsonify({"success": True, "data": dataframe_to_json(df)})
@@ -1014,41 +1077,173 @@ def global_search():
 
 
 # ============================================================================
-# PLANIFICATION
+# PLANIFICATION - VERSION AVEC BASE DE DONNÉES
 # ============================================================================
-
-plannings = []
-planning_counter = 1
 
 @app.route("/api/planning/list", methods=["GET"])
 def get_plannings():
-    return jsonify({"success": True, "data": plannings})
+    conn = get_connection()
+    if not conn:
+        return jsonify({"success": False, "error": "Connexion impossible"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM dbo.PLANIFICATIONS ORDER BY DATE_HEURE")
+        rows = cursor.fetchall()
+        
+        columns = [column[0] for column in cursor.description]
+        data = []
+        for row in rows:
+            record = {}
+            for i, col in enumerate(columns):
+                value = row[i]
+                if hasattr(value, 'strftime'):
+                    value = value.strftime('%Y-%m-%d %H:%M:%S')
+                record[col] = value
+            data.append(record)
+        
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
 
 @app.route("/api/planning/create", methods=["POST"])
 def create_planning():
-    global planning_counter
-    data = request.json
-    planning = {
-        "id": planning_counter,
-        "type": data.get('type'),
-        "frequence": data.get('frequence'),
-        "destinataires": data.get('destinataires'),
-        "status": "actif",
-        "created_at": datetime.now().isoformat()
-    }
-    plannings.append(planning)
-    planning_counter += 1
-    return jsonify({"success": True, "data": planning})
+    conn = get_connection()
+    if not conn:
+        return jsonify({"success": False, "error": "Connexion impossible"}), 500
+    
+    try:
+        data = request.json
+        type_extrait = data.get('type')
+        frequence = data.get('frequence')
+        destinataires = data.get('destinataires')
+        date_heure_str = data.get('date_heure')
+        
+        date_heure = date_heure_str.replace('T', ' ') + ':00'
+        
+        cursor = conn.cursor()
+        query = """
+        INSERT INTO dbo.PLANIFICATIONS (TYPE_EXTRAIT, FREQUENCE, DESTINATAIRES, DATE_HEURE, ACTIF)
+        VALUES (?, ?, ?, ?, 1)
+        """
+        cursor.execute(query, (type_extrait, frequence, destinataires, date_heure))
+        conn.commit()
+        
+        return jsonify({"success": True, "message": "Planification créée"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
 
 @app.route("/api/planning/delete/<int:plan_id>", methods=["DELETE"])
 def delete_planning(plan_id):
-    global plannings
-    plannings = [p for p in plannings if p['id'] != plan_id]
-    return jsonify({"success": True})
+    conn = get_connection()
+    if not conn:
+        return jsonify({"success": False, "error": "Connexion impossible"}), 500
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM dbo.PLANIFICATIONS WHERE ID = ?", (plan_id,))
+        conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.route("/api/planning/update/<int:plan_id>", methods=["PUT"])
+def update_planning(plan_id):
+    conn = get_connection()
+    if not conn:
+        return jsonify({"success": False, "error": "Connexion impossible"}), 500
+    
+    try:
+        data = request.json
+        date_heure_str = data.get('date_heure')
+        
+        date_heure = date_heure_str.replace('T', ' ') + ':00'
+        
+        cursor = conn.cursor()
+        query = """
+        UPDATE dbo.PLANIFICATIONS 
+        SET TYPE_EXTRAIT = ?, FREQUENCE = ?, DESTINATAIRES = ?, DATE_HEURE = ?, ACTIF = ?
+        WHERE ID = ?
+        """
+        cursor.execute(query, (data.get('type'), data.get('frequence'), data.get('destinataires'), date_heure, data.get('actif'), plan_id))
+        conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
 
 @app.route("/api/planning/test/<int:plan_id>", methods=["POST"])
 def test_planning(plan_id):
-    return jsonify({"success": True, "message": "Test envoyé"})
+    """Teste l'envoi d'une planification"""
+    conn = get_connection()
+    if not conn:
+        return jsonify({"success": False, "error": "Connexion impossible"}), 500
+    
+    try:
+        from planning_executor import get_rapport_data, send_email, dataframe_to_excel_bytes
+        
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM dbo.PLANIFICATIONS WHERE ID = ?", (plan_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            return jsonify({"success": False, "error": "Planification non trouvée"}), 404
+        
+        type_extrait = row[1]
+        destinataires = row[3].split(',') if row[3] else []
+        
+        df_data, titre = get_rapport_data(type_extrait)
+        
+        if df_data is not None and not df_data.empty:
+            excel_content = dataframe_to_excel_bytes(df_data)
+            
+            html_body = f"""
+            <html>
+            <body style="font-family: Arial;">
+                <div style="background: #1a472a; color: white; padding: 20px; text-align: center;">
+                    <h2>REMU-CI VisionExtract</h2>
+                    <h3>TEST - {titre}</h3>
+                </div>
+                <div style="padding: 20px;">
+                    <p>Ceci est un TEST de votre planification.</p>
+                    <p>Date du test: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</p>
+                </div>
+            </body>
+            </html>
+            """
+            
+            success = send_email(
+                to_emails=destinataires,
+                subject=f"[TEST] {titre} - {datetime.now().strftime('%d/%m/%Y')}",
+                html_body=html_body,
+                attachments=[(f"TEST_{titre}.xlsx", excel_content)]
+            )
+            
+            return jsonify({"success": success, "message": "Test envoyé" if success else "Erreur d'envoi"})
+        else:
+            return jsonify({"success": False, "error": "Aucune donnée trouvée"}), 500
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 # ============================================================================
@@ -1084,7 +1279,7 @@ def test_dashboard():
         cursor = conn.cursor()
         cursor.execute("""
             SELECT COUNT(*) as nb, ISNULL(SUM(mtt_pret), 0) as total
-            FROM dbo.extra_credits_view
+            FROM dbo.extra_credits_materialized
             WHERE date_effet >= DATEADD(day, -30, GETDATE())
         """)
         row = cursor.fetchone()
@@ -1167,14 +1362,14 @@ def email_status():
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("DÉMARRAGE DE VISIONEXTRACT - VERSION ULTRA RAPIDE")
+    print("DÉMARRAGE DE VISIONEXTRACT - VERSION ULTRA RAPIDE AVEC LICENCE")
     print("=" * 60)
     print("\nInterface disponible sur:")
     print("   - http://127.0.0.1:5000")
     print("\nIdentifiants: ADMIN / Admin@2025!")
-    print("\n✅ Cache activé (3 minutes)")
+    print("\n✅ Système de licence actif")
+    print("✅ Cache activé (3 minutes)")
     print("✅ Requête SQL unique")
-    print("✅ Timeout réduit à 15 secondes")
     print("=" * 60)
     
     app.run(debug=True, host='0.0.0.0', port=5000)

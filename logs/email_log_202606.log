@@ -47,3 +47,154 @@
 2026-06-01 16:20:41,522 - EmailSender - INFO -    Credit: ✅ SUCCÈS
 2026-06-01 16:20:41,523 - EmailSender - INFO -    Audit: ✅ SUCCÈS
 2026-06-01 16:20:41,523 - EmailSender - INFO - ========================================
+2026-06-02 19:31:49,340 - EmailSender - INFO - ============================================================
+2026-06-02 19:31:49,341 - EmailSender - INFO - DÉBUT DE L'ENVOI DES RAPPORTS QUOTIDIENS
+2026-06-02 19:31:49,341 - EmailSender - INFO - Date: 2026-06-02 19:31:49
+2026-06-02 19:31:49,342 - EmailSender - INFO - Extraction des données...
+2026-06-02 19:31:49,689 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-02 19:31:51,199 - EmailSender - INFO - Credits débloqués: 0 lignes
+2026-06-02 19:31:51,201 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-02 19:31:52,305 - EmailSender - INFO - Nouveaux clients: 0 lignes
+2026-06-02 19:31:52,305 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-02 19:31:52,435 - EmailSender - INFO - Comptes ouverts: 0 lignes
+2026-06-02 19:31:52,436 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-02 19:31:57,491 - EmailSender - INFO - Crédits impayés: 1196 lignes
+2026-06-02 19:31:57,491 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-02 19:32:01,878 - EmailSender - INFO - Clients actifs: 668 lignes
+2026-06-02 19:32:01,878 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-02 19:32:02,560 - EmailSender - INFO - Parts sociales: 500 lignes
+2026-06-02 19:32:02,561 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-02 19:32:07,398 - EmailSender - INFO - Échéances futures: 183 lignes
+2026-06-02 19:32:07,399 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-02 19:32:36,072 - EmailSender - INFO - Remboursements: 81 lignes
+2026-06-02 19:32:36,073 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-02 19:32:46,519 - EmailSender - INFO - Balance J-1: 84150 comptes
+2026-06-02 19:32:56,580 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-02 19:32:56,626 - EmailSender - ERROR - Erreur grand_livre: Execution failed on sql '
+        SELECT TOP 5000
+            c.NUM_CPTE AS [Numéro Compte],
+            c.LIBELLE AS [Libellé],
+            h.DATE_OPERATION AS [Date],
+            h.LIBELLE_OPERATION AS [Libellé opération],
+            h.NUM_PIECE AS [N° Pièce],
+            CASE WHEN h.SENS = 'D' THEN h.MONTANT_OPERATION ELSE 0 END AS [Débit],
+            CASE WHEN h.SENS = 'C' THEN h.MONTANT_OPERATION ELSE 0 END AS [Crédit]
+        FROM COMPTES c
+        LEFT JOIN HDPM h ON c.ID = h.ID_COMPTE
+        WHERE h.DATE_OPERATION IS NOT NULL
+          
+        ORDER BY h.DATE_OPERATION DESC, c.NUM_CPTE
+        ': ('42S22', "[42S22] [Microsoft][ODBC SQL Server Driver][SQL Server]Invalid column name 'LIBELLE_OPERATION'. (207) (SQLExecDirectW); [42S22] [Microsoft][ODBC SQL Server Driver][SQL Server]Invalid column name 'NUM_PIECE'. (207)")
+2026-06-02 19:33:20,720 - EmailSender - INFO - Email envoyé à 2 destinataires
+2026-06-02 19:33:24,862 - EmailSender - INFO - Email envoyé à 2 destinataires
+2026-06-02 19:33:29,455 - EmailSender - INFO - Email envoyé à 2 destinataires
+2026-06-02 19:34:18,937 - EmailSender - INFO - Email envoyé à 2 destinataires
+2026-06-02 19:34:18,940 - EmailSender - INFO - ========================================
+2026-06-02 19:34:18,944 - EmailSender - INFO - RÉCAPITULATIF:
+2026-06-02 19:34:18,945 - EmailSender - INFO -    Finance: ✅ SUCCÈS
+2026-06-02 19:34:18,946 - EmailSender - INFO -    Exploitation: ✅ SUCCÈS
+2026-06-02 19:34:18,951 - EmailSender - INFO -    Credit: ✅ SUCCÈS
+2026-06-02 19:34:18,951 - EmailSender - INFO -    Audit: ✅ SUCCÈS
+2026-06-02 19:34:18,952 - EmailSender - INFO - ========================================
+2026-06-03 07:00:08,077 - EmailSender - INFO - ============================================================
+2026-06-03 07:00:08,078 - EmailSender - INFO - DÉBUT DE L'ENVOI DES RAPPORTS QUOTIDIENS
+2026-06-03 07:00:08,078 - EmailSender - INFO - Date: 2026-06-03 07:00:08
+2026-06-03 07:00:08,078 - EmailSender - INFO - Extraction des données...
+2026-06-03 07:00:08,984 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-03 07:00:14,120 - EmailSender - INFO - Credits débloqués: 0 lignes
+2026-06-03 07:00:14,121 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-03 07:01:55,417 - EmailSender - INFO - Nouveaux clients: 0 lignes
+2026-06-03 07:01:55,423 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-03 07:01:55,648 - EmailSender - INFO - Comptes ouverts: 0 lignes
+2026-06-03 07:01:55,649 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-03 07:02:02,494 - EmailSender - INFO - Crédits impayés: 1200 lignes
+2026-06-03 07:02:02,495 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-03 07:02:49,635 - EmailSender - INFO - Clients actifs: 656 lignes
+2026-06-03 07:02:49,637 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-03 07:02:50,589 - EmailSender - INFO - Parts sociales: 500 lignes
+2026-06-03 07:02:50,594 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-03 07:02:56,458 - EmailSender - INFO - Échéances futures: 183 lignes
+2026-06-03 07:02:56,460 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-03 07:03:02,531 - EmailSender - INFO - Remboursements: 81 lignes
+2026-06-03 07:03:02,533 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-03 07:03:20,196 - EmailSender - INFO - Balance J-1: 84150 comptes
+2026-06-03 07:03:20,197 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-03 07:03:20,226 - EmailSender - ERROR - Erreur grand_livre: Execution failed on sql '
+        SELECT TOP 5000
+            c.NUM_CPTE AS [Numéro Compte],
+            c.LIBELLE AS [Libellé],
+            h.DATE_OPERATION AS [Date],
+            h.LIBELLE_OPERATION AS [Libellé opération],
+            h.NUM_PIECE AS [N° Pièce],
+            CASE WHEN h.SENS = 'D' THEN h.MONTANT_OPERATION ELSE 0 END AS [Débit],
+            CASE WHEN h.SENS = 'C' THEN h.MONTANT_OPERATION ELSE 0 END AS [Crédit]
+        FROM COMPTES c
+        LEFT JOIN HDPM h ON c.ID = h.ID_COMPTE
+        WHERE h.DATE_OPERATION IS NOT NULL
+          
+        ORDER BY h.DATE_OPERATION DESC, c.NUM_CPTE
+        ': ('42S22', "[42S22] [Microsoft][ODBC SQL Server Driver][SQL Server]Invalid column name 'LIBELLE_OPERATION'. (207) (SQLExecDirectW); [42S22] [Microsoft][ODBC SQL Server Driver][SQL Server]Invalid column name 'NUM_PIECE'. (207)")
+2026-06-03 07:04:13,009 - EmailSender - INFO - Email envoyé à 2 destinataires
+2026-06-03 07:04:17,407 - EmailSender - INFO - Email envoyé à 2 destinataires
+2026-06-03 07:04:23,305 - EmailSender - INFO - Email envoyé à 2 destinataires
+2026-06-03 07:05:12,964 - EmailSender - INFO - Email envoyé à 2 destinataires
+2026-06-03 07:05:12,966 - EmailSender - INFO - ========================================
+2026-06-03 07:05:12,972 - EmailSender - INFO - RÉCAPITULATIF:
+2026-06-03 07:05:12,973 - EmailSender - INFO -    Finance: ✅ SUCCÈS
+2026-06-03 07:05:12,976 - EmailSender - INFO -    Exploitation: ✅ SUCCÈS
+2026-06-03 07:05:12,976 - EmailSender - INFO -    Credit: ✅ SUCCÈS
+2026-06-03 07:05:12,976 - EmailSender - INFO -    Audit: ✅ SUCCÈS
+2026-06-03 07:05:12,976 - EmailSender - INFO - ========================================
+2026-06-04 03:46:41,607 - EmailSender - INFO - Email envoyé à 2 destinataires
+2026-06-04 03:46:53,707 - EmailSender - INFO - Email envoyé à 1 destinataires
+2026-06-04 05:08:59,657 - EmailSender - INFO - Email envoyé à 1 destinataires
+2026-06-04 07:00:02,539 - EmailSender - INFO - ============================================================
+2026-06-04 07:00:02,540 - EmailSender - INFO - DÉBUT DE L'ENVOI DES RAPPORTS QUOTIDIENS
+2026-06-04 07:00:02,541 - EmailSender - INFO - Date: 2026-06-04 07:00:02
+2026-06-04 07:00:02,541 - EmailSender - INFO - Extraction des données...
+2026-06-04 07:00:02,644 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-04 07:00:04,538 - EmailSender - INFO - Credits débloqués: 0 lignes
+2026-06-04 07:00:04,539 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-04 07:00:05,960 - EmailSender - INFO - Nouveaux clients: 0 lignes
+2026-06-04 07:00:05,960 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-04 07:00:06,167 - EmailSender - INFO - Comptes ouverts: 0 lignes
+2026-06-04 07:00:06,168 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-04 07:00:14,065 - EmailSender - INFO - Crédits impayés: 1202 lignes
+2026-06-04 07:00:14,066 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-04 07:00:20,684 - EmailSender - INFO - Clients actifs: 654 lignes
+2026-06-04 07:00:20,684 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-04 07:00:21,758 - EmailSender - INFO - Parts sociales: 500 lignes
+2026-06-04 07:00:21,760 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-04 07:00:28,646 - EmailSender - INFO - Échéances futures: 183 lignes
+2026-06-04 07:00:28,647 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-04 07:00:34,981 - EmailSender - INFO - Remboursements: 81 lignes
+2026-06-04 07:00:34,983 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-04 07:00:48,112 - EmailSender - INFO - Balance J-1: 84150 comptes
+2026-06-04 07:00:48,113 - EmailSender - INFO - Connexion SQL Server réussie
+2026-06-04 07:00:48,134 - EmailSender - ERROR - Erreur grand_livre: Execution failed on sql '
+        SELECT TOP 5000
+            c.NUM_CPTE AS [Numéro Compte],
+            c.LIBELLE AS [Libellé],
+            h.DATE_OPERATION AS [Date],
+            h.LIBELLE_OPERATION AS [Libellé opération],
+            h.NUM_PIECE AS [N° Pièce],
+            CASE WHEN h.SENS = 'D' THEN h.MONTANT_OPERATION ELSE 0 END AS [Débit],
+            CASE WHEN h.SENS = 'C' THEN h.MONTANT_OPERATION ELSE 0 END AS [Crédit]
+        FROM COMPTES c
+        LEFT JOIN HDPM h ON c.ID = h.ID_COMPTE
+        WHERE h.DATE_OPERATION IS NOT NULL
+          
+        ORDER BY h.DATE_OPERATION DESC, c.NUM_CPTE
+        ': ('42S22', "[42S22] [Microsoft][ODBC SQL Server Driver][SQL Server]Invalid column name 'LIBELLE_OPERATION'. (207) (SQLExecDirectW); [42S22] [Microsoft][ODBC SQL Server Driver][SQL Server]Invalid column name 'NUM_PIECE'. (207)")
+2026-06-04 07:00:54,811 - EmailSender - INFO - Email envoyé à 2 destinataires
+2026-06-04 07:01:19,283 - EmailSender - ERROR - Erreur envoi email: Connection unexpectedly closed: [WinError 10060] Une tentative de connexion a échoué car le parti connecté n’a pas répondu convenablement au-delà d’une certaine durée ou une connexion établie a échoué car l’hôte de connexion n’a pas répondu
+2026-06-04 07:01:40,411 - EmailSender - ERROR - Erreur envoi email: [WinError 10060] Une tentative de connexion a échoué car le parti connecté n’a pas répondu convenablement au-delà d’une certaine durée ou une connexion établie a échoué car l’hôte de connexion n’a pas répondu
+2026-06-04 07:01:53,094 - EmailSender - INFO - Email envoyé à 2 destinataires
+2026-06-04 07:02:49,350 - EmailSender - INFO - Email envoyé à 2 destinataires
+2026-06-04 07:02:49,352 - EmailSender - INFO - ========================================
+2026-06-04 07:02:49,356 - EmailSender - INFO - RÉCAPITULATIF:
+2026-06-04 07:02:49,357 - EmailSender - INFO -    Finance: ❌ ÉCHEC
+2026-06-04 07:02:49,358 - EmailSender - INFO -    Exploitation: ❌ ÉCHEC
+2026-06-04 07:02:49,358 - EmailSender - INFO -    Credit: ✅ SUCCÈS
+2026-06-04 07:02:49,358 - EmailSender - INFO -    Audit: ✅ SUCCÈS
+2026-06-04 07:02:49,358 - EmailSender - INFO - ========================================
